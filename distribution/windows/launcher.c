@@ -80,6 +80,15 @@ static int launch(int argc,wchar_t **argv) {
 #endif
     STARTUPINFOW startup={0}; startup.cb=sizeof(startup);
     PROCESS_INFORMATION process={0}; DWORD flags=0;
+#ifdef SERVER
+    startup.dwFlags=STARTF_USESTDHANDLES;
+    HANDLE standard[3]; DWORD slots[3]={STD_INPUT_HANDLE,STD_OUTPUT_HANDLE,STD_ERROR_HANDLE};
+    for(int i=0;i<3;i++) {
+        if(!DuplicateHandle(GetCurrentProcess(),GetStdHandle(slots[i]),GetCurrentProcess(),&standard[i],0,TRUE,DUPLICATE_SAME_ACCESS))
+            fail(L"Cannot inherit console input/output handles.");
+    }
+    startup.hStdInput=standard[0]; startup.hStdOutput=standard[1]; startup.hStdError=standard[2];
+#endif
 #ifndef SERVER
     SECURITY_ATTRIBUTES inherit={sizeof(SECURITY_ATTRIBUTES),NULL,TRUE};
     swprintf(path,32768,L"%ls\\launcher.log",runtime);
@@ -92,6 +101,8 @@ static int launch(int argc,wchar_t **argv) {
     BOOL started=CreateProcessW(java,command,NULL,NULL,TRUE,flags,NULL,runtime,&startup,&process);
 #ifndef SERVER
     CloseHandle(log); CloseHandle(input);
+#else
+    for(int i=0;i<3;i++) CloseHandle(standard[i]);
 #endif
     if(!started) fail(L"Could not start bundled Java. Extract the entire archive and try again.");
     WaitForSingleObject(process.hProcess,INFINITE);
