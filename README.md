@@ -6,6 +6,12 @@ A headless dedicated server for [PokeWilds-F](https://github.com/whale2186/pokew
 
 [Download server releases](https://github.com/whale2186/pokewilds-f-server/releases) · [Client releases](https://github.com/whale2186/pokewilds-f/releases) · [Multiplayer guide](docs/MULTIPLAYER.md)
 
+## Client preview
+
+A client view from a local multiplayer session. The dedicated server runs without a game window.
+
+<img src="docs/screenshots/multiplayer.png" alt="PokeWilds-F multiplayer client showing two players on the same island" width="800">
+
 ## Run a server
 
 Download and extract the **v0.1.1** package for your operating system. **Java 11 is bundled**, and the server needs no display, sound device, or local game client.

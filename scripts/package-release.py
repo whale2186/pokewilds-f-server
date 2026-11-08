@@ -69,6 +69,7 @@ def main():
         for file in ('CREDITS.md','THIRD-PARTY-NOTICES.md'):
             shutil.copy2(ROOT/file, package/file)
         (package/'docs').mkdir()
+        if (ROOT/'docs/screenshots').is_dir(): shutil.copytree(ROOT/'docs/screenshots',package/'docs/screenshots')
         shutil.copy2(ROOT/'docs/MULTIPLAYER.md',package/'docs/MULTIPLAYER.md')
         if kind == 'client':
             (package/'config').mkdir()
