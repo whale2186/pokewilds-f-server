@@ -158,6 +158,66 @@ public class Game extends ApplicationAdapter {
    private boolean inFullScreen = false;
 
    LanCoop coop;
+   private boolean mainMenuRequested;
+
+   // Apply transitions at the start of a frame, before either action stack is copied.
+   void requestMainMenu() { this.mainMenuRequested = true; }
+
+   private void returnToMainMenu() {
+      this.mainMenuRequested = false;
+      if (this.coop != null) { this.coop.close(); this.coop = null; }
+      if (this.client != null) {
+         if (this.type == Type.CLIENT && this.client.isConnected())
+            this.client.sendTCP(new Network.Logout(this.player.network.id));
+         this.client.stop(); this.client = null;
+      }
+      if (this.server != null) { this.server.stop(); this.server = null; }
+      this.type = null;
+      if (this.currMusic != null) {
+         this.currMusic.stop();
+         if (!this.loadedMusic.containsValue(this.currMusic)
+               && this.currMusic != this.battle.music && this.currMusic != this.battle.victoryFanfare)
+            this.currMusic.dispose();
+      }
+      for (Music music : this.loadedMusic.values()) music.stop();
+      for (Sound sound : this.loadedSound.values()) sound.stop();
+      this.battle.music.dispose(); this.battle.victoryFanfare.dispose();
+      this.currMusic = null; this.musicController = null;
+      if (this.map != null && this.map.minimap != null) this.map.minimap.dispose();
+      this.map = null;
+      this.players.clear(); this.battles.clear(); this.alreadyUsedDungeons.clear();
+      this.actionStack.clear(); this.actionStackCopy.clear(); this.displayTextAction = null;
+      this.playerCanMove = false;
+      CycleDayNight.fadeToDay = CycleDayNight.fadeToNight = false;
+      CycleDayNight.dayTimer = 18000;
+      FogEffect.type = null; FogEffect.refresh = true;
+      DrawMiniMap.warpTiles.clear();
+      DrawBattle.shouldDrawOwnPokemon = DrawBattle.shouldDrawOppPokemon = true;
+      DrawBattle.hideOwnPokemon = DrawBattle.hideOppPokemon = false;
+      DrawFriendlyHealth.shouldDraw = DrawEnemyHealth.shouldDraw = true;
+      SpriteProxy.inverseColors = SpriteProxy.darkenAllColors1 = SpriteProxy.darkenAllColors2
+         = SpriteProxy.darkenAllColors3 = SpriteProxy.lightenAllColors1 = SpriteProxy.lightenAllColors2
+         = SpriteProxy.confuseRayColors1 = SpriteProxy.confuseRayColors2 = false;
+      this.mapBatch.setColor(Color.WHITE); this.uiBatch.setColor(Color.WHITE);
+      this.currCloudTexture = this.cloudTexture; this.currSunsetColor.set(Color.WHITE);
+      this.cam.position.set(16, 0, 0); this.cam.zoom = 1;
+      DrawPlayerMenu.lastIndex = DrawPokemonMenu.currIndex = DrawPokemonMenu.lastIndex = DrawPokemonMenu.scrollIndex = 0;
+      DrawItemMenu.lastCurrIndex = DrawItemMenu.lastCursorPos = DrawItemMenu.lastCurrIndexGuide = DrawItemMenu.lastCursorPosGuide = 0;
+      DrawSetupMenu.currIndex = DrawSetupMenu.lastIndex = 0;
+      DrawItemMenuGen2.boxIndex = 0;
+      DrawPokemonMenu.allPokemon = null; DrawPokemonMenu.storageChestTile = null;
+      DrawPokemonMenu.animsPaused = false;
+      Player previous = this.player;
+      this.player = new Player();
+      this.player.name = previous.name; this.player.character = previous.character;
+      this.player.skinColor = new Color(previous.skinColor); this.player.setColor(new Color(previous.color));
+      this.battle = new Battle();
+      Gdx.input.setInputProcessor(null); InputProcessor.clearControls();
+      this.insertAction(new InputProcessor());
+      if (Gdx.app.getType() == ApplicationType.Android) this.insertAction(new DrawMobileControls(this));
+      this.insertAction(new TitleMenu(this));
+      Gdx.gl.glClearColor(1, 1, 1, 1);
+   }
 
    public Game() {
    }
@@ -820,12 +880,12 @@ public class Game extends ApplicationAdapter {
 
    @Override
    public void render() {
-      if (this.coop != null) {
-         this.coop.beforeFrame();
-         if (this.coop.simulationBlocked()) {
-            this.uiBatch.begin(); this.coop.drawStatus(); this.uiBatch.end();
-            return;
-         }
+      if (this.mainMenuRequested) this.returnToMainMenu();
+      if (this.coop != null) this.coop.beforeFrame();
+      if (this.mainMenuRequested) this.returnToMainMenu();
+      if (this.coop != null && this.coop.simulationBlocked()) {
+         this.uiBatch.begin(); this.coop.drawStatus(); this.uiBatch.end();
+         return;
       }
       this.profiler.reset();
       if (this.debugInputEnabled && (this.coop == null || (!this.coop.hud.blocksInput() && !this.coop.spectator.blocksInput()))) {

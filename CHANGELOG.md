@@ -6,7 +6,7 @@ Drop items from the bag as packs that players can claim. Packs stay in the saved
 
 Fix Pokémon disappearing from view when positions overlap or after leaving and returning. Keep creatures on the correct floor and preserve them through save/reload.
 
-Spectating uses the normal battle layout. Player interactions have clearer menus and mouse support. Add Exit to the start menu and hide Save in multiplayer.
+Spectating uses the normal battle layout. Player interactions have clearer menus and mouse support. Exit saves and returns to the main menu. Hide Save in multiplayer.
 
 ## v0.1.2 — Battle status and spectating
 

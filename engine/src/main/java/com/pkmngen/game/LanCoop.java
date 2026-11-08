@@ -63,7 +63,7 @@ public final class LanCoop implements AutoCloseable {
             if (pendingTransaction != null || saveRequested || failure != null) return;
         }
         if (exitFlush == null) exitFlush = disk.submit(() -> {});
-        if (exitFlush.isDone() && failure == null) Gdx.app.exit();
+        if (exitFlush.isDone() && failure == null) game.requestMainMenu();
     }
     private final java.util.concurrent.ExecutorService disk = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "coop-save"); t.setDaemon(true); return t;

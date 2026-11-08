@@ -213,4 +213,6 @@ Optional graphical check: `python3 scripts/test_spectator.py` uses an isolated c
 
 Choose an item in the bag, select **DROP**, and choose an amount. Face clear ground to place a pack. Face the pack and interact, then select **Claim** to take its contents or **Exit** to leave it. Packs remain in the saved world until claimed. Simultaneous claims give the items to one player.
 
-The start menu hides **Save** in multiplayer. **Exit** saves your progress before closing. Use updated clients for the pack sprite and menus.
+The start menu hides **Save** in multiplayer. **Exit** saves your progress and returns to the main menu. **Quit** on the main menu closes the game. Use updated clients for the pack sprite and menus.
+
+Optional menu check: `python3 scripts/test_main_menu.py` verifies saving and returning to the main menu in single-player, graphical hosting and guest play, including reconnecting in the same window. It uses copied worlds.

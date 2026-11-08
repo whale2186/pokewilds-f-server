@@ -36,6 +36,12 @@ public final class LanSpectatorE2E extends Game {
             InputProcessor.clearControls();
             if(System.nanoTime()-started>150_000_000_000L) throw new AssertionError("Spectator deadline phase="+phase);
             if(coop!=null && coop.problem()!=null) throw new AssertionError(coop.problem());
+            if(!source && phase==8) {
+                if(coop==null && map==null && actionStack.stream().anyMatch(a -> a instanceof TitleMenu)) {
+                    mark("PASS-viewer"); phase=9; Gdx.app.exit();
+                }
+                return;
+            }
             if(coop==null || !coop.ready()) return;
             if(source) sourceStep(); else viewerStep();
         } catch(Throwable failure) { failure.printStackTrace();System.exit(1); }
@@ -164,7 +170,7 @@ public final class LanSpectatorE2E extends Game {
         } else if(phase==6 && received("pvp-expected.json")) {
             unchanged();picture("pvp-spectate.png");mark("pvp-updated");phase=7;
         } else if(phase==7 && !coop.session().peers().containsKey(target) && !coop.spectator.watching()) {
-            unchanged();mark("PASS-viewer");coop.requestExit();
+            unchanged();coop.requestExit();phase=8;
         }
     }
     public static void main(String[] args) {

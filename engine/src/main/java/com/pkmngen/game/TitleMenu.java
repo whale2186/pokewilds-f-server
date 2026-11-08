@@ -24,6 +24,7 @@ final class TitleMenu extends Action {
 
     TitleMenu(Game game) {
         this(game, new ServerList());
+        if (game.player != null) playerName = game.player.name;
         try { servers.load(); } catch (Exception invalid) { error = "Cannot load servers"; }
     }
 
