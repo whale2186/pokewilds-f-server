@@ -72,7 +72,7 @@ class InputProcessor extends Action {
 
    @Override
    public void step(Game game) {
-      if (game.coop != null && (game.coop.hud.blocksInput() || game.coop.privateEditPending())) { clearControls(); return; }
+      if (game.coop != null && (game.coop.hud.blocksInput() || game.coop.spectator.blocksInput() || game.coop.privateEditPending())) { clearControls(); return; }
       if (acceptInput) {
          if (Gdx.input.isTouched()) {
             float scaleX = 160.0F / game.currScreen.x;

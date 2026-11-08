@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.2 — Battle status and spectating
+
+Poké Ball icons beside battling players' names. Interact and choose Spectate, or press F5 nearby. Live combatant sprites, HP/status, turns and narration; Esc/X leaves. Watching stops on battle end, departure or disconnect. Spectators cannot issue battle commands or alter their party/items through the viewer. Original attack effects are not replayed.
+
 ## v0.1.1 — Windows/Linux platform packages
 
 Separate Windows x64 ZIP and Linux x64 tar.gz packages for client and server, each with a checksum-pinned Temurin Java 11 runtime and its original notices. Windows adds native .exe launchers; Linux preserves executable launcher permissions. No game rules, protocol or save-format change from v0.1.0.

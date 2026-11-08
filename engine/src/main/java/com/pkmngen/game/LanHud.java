@@ -44,9 +44,9 @@ final class LanHud extends InputAdapter {
                 || Gdx.input.isKeyPressed(InputProcessor.keyboardStart);
     }
     void update() {
-        if (typing && (!coop.ready() || !game.playerCanMove)) closeEditor();
+        if (typing && (!coop.ready() || !game.playerCanMove || coop.spectator.watching())) closeEditor();
         if (releasing && !held()) releasing = false;
-        if (!coop.ready()) return;
+        if (!coop.ready() || coop.spectator.watching()) return;
         if (Gdx.input.isKeyJustPressed(Keys.T) && !typing && !releasing && game.playerCanMove) openEditor();
         if (!typing && Gdx.input.isKeyJustPressed(Keys.F3)) { roster = !roster; page = 0; }
         if (!typing && Gdx.input.isKeyJustPressed(Keys.F4)) { details = !details; hidden = false; }
@@ -69,7 +69,7 @@ final class LanHud extends InputAdapter {
         return out;
     }
     void openEditor() {
-        if (typing || !coop.ready() || !game.playerCanMove) return;
+        if (typing || !coop.ready() || !game.playerCanMove || coop.spectator.watching()) return;
         typing = true; roster = false; scroll = 0;
         previousInput = Gdx.input.getInputProcessor();
         ownedInput = previousInput == null ? new InputMultiplexer(this) : new InputMultiplexer(this, previousInput);
@@ -166,6 +166,7 @@ final class LanHud extends InputAdapter {
                 for(int i=page*perPage;i<Math.min(sorted.size(),page*perPage+perPage);i++) {
                     LanSession.Pose p=sorted.get(i);
                     text(LanChat.clean(p.name) + " #" + p.id.substring(0,Math.min(4,p.id.length()))
+                            + (LanBattleState.readVisual(p.visual)!=null ? " [battle]" : "")
                             + (p.id.equals(coop.session().id()) ? " (you)" : p.id.equals(coop.session().authorityId()) ? " (host)" : ""),
                             rx+pad,rt-screen.headerHeight-8-(i%perPage)*22);
                 }
@@ -184,7 +185,7 @@ final class LanHud extends InputAdapter {
                 text("Enter send | Esc close",x+pad,screen.margin+16);
             } else {
                 text("T Chat     F3 Players",x+pad,screen.margin+screen.footerHeight-8);
-                text("F4 Info    F1 Hide",x+pad,screen.margin+16);
+                text("F4 Info  F5 Watch  F1 Hide",x+pad,screen.margin+16);
             }
         } finally {
             game.font.getData().setScale(sx,sy); game.font.setColor(old);

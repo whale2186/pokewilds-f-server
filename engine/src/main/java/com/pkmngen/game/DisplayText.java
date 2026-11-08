@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.regex.Pattern;
 
 class DisplayText extends Action {
+   final String sourceText;
    public static boolean textPersist = false;
    ArrayList<Sprite> spritesNotDrawn;
    ArrayList<Sprite> spritesBeingDrawn;
@@ -48,6 +49,7 @@ class DisplayText extends Action {
 
    public DisplayText(Game game, String textString, String playSound, Action triggerAction, boolean braillify, Action nextAction) {
       super();
+      this.sourceText = textString;
       this.nextAction = nextAction;
       this.firstStep = true;
       this.triggerAction = triggerAction;

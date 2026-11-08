@@ -828,7 +828,7 @@ public class Game extends ApplicationAdapter {
          }
       }
       this.profiler.reset();
-      if (this.debugInputEnabled && (this.coop == null || !this.coop.hud.blocksInput())) {
+      if (this.debugInputEnabled && (this.coop == null || (!this.coop.hud.blocksInput() && !this.coop.spectator.blocksInput()))) {
          this.handleDebuggingInput();
       }
 

@@ -26,6 +26,7 @@ public final class LanCoop implements AutoCloseable {
     final Game game;
     private final LanInteractions interactions;
     final LanHud hud;
+    final LanSpectator spectator;
     final LanOptions options;
     private volatile LanSession session;
     private volatile String failure;
@@ -133,8 +134,14 @@ public final class LanCoop implements AutoCloseable {
         boolean trade;
     }
 
-    LanCoop(Game game, LanOptions options) { this.game = game; this.options = options; interactions = new LanInteractions(game, this); hud = new LanHud(game, this); }
-    boolean interactWithPlayer() { return ready() && !hud.blocksInput() && interactions.openNearby(); }
+    LanCoop(Game game, LanOptions options) { this.game = game; this.options = options; interactions = new LanInteractions(game, this); hud = new LanHud(game, this); spectator = new LanSpectator(game,this); }
+    boolean interactWithPlayer() { return ready() && !hud.blocksInput() && !spectator.blocksInput() && interactions.openNearby(); }
+    boolean interactionBusy() { return interactions.busy(); }
+    LanBattleState interactionBattle() { return interactions.battleView(); }
+    boolean peerBattling(String id) {
+        LanVisual visual=remoteVisuals.get(id);
+        return visual!=null && visual.battle!=null;
+    }
     boolean editPending() { return pendingTransaction != null; }
     String editNotice() { return notice != null && System.nanoTime() < noticeUntil ? notice : null; }
     public static void validateArgs(String[] args) { LanOptions.parse(args); }
@@ -267,6 +274,7 @@ public final class LanCoop implements AutoCloseable {
 
     void beforeFrame() {
         if (closed) return;
+        spectator.update();
         hud.update();
         if (failure != null) { game.playerCanMove = false; return; }
         if (isGuest() && session != null && !initialized) {
@@ -321,7 +329,7 @@ public final class LanCoop implements AutoCloseable {
         if (failure != null) game.font.draw(game.uiBatch, "LAN: " + failure, 1, 142);
         else if (!ready()) game.font.draw(game.uiBatch, "LAN: " + status, 1, 142);
         else {
-            hud.draw();
+            if (spectator.watching()) spectator.draw(); else hud.draw();
         }
     }
 
@@ -1209,7 +1217,7 @@ public final class LanCoop implements AutoCloseable {
         return false;
     }
     @Override public void close() {
-        hud.dispose();
+        spectator.dispose(); hud.dispose();
         closed = true; saveGuest();
         if (session != null) session.close();
         if (worker != null) worker.interrupt();

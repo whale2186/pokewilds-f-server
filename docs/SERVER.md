@@ -8,12 +8,12 @@ A headless dedicated server for [PokeWilds-F](https://github.com/whale2186/pokew
 
 ## Run a server
 
-Download and extract the **v0.1.1** package for your operating system. **Java 11 is bundled**, and the server needs no display, sound device, or local game client.
+Download and extract the **v0.1.2** package for your operating system. **Java 11 is bundled**, and the server needs no display, sound device, or local game client.
 
 | Platform | Download | Launch |
 |---|---|---|
-| Windows x64 | [Windows ZIP](https://github.com/whale2186/pokewilds-f-server/releases/download/v0.1.1/pokewilds-f-server-v0.1.1-windows-x64.zip) | `pokewilds-f-server.exe shared 54555` |
-| Linux x64 (glibc) | [Linux tar.gz](https://github.com/whale2186/pokewilds-f-server/releases/download/v0.1.1/pokewilds-f-server-v0.1.1-linux-x64.tar.gz) | `./start-server.sh shared 54555` |
+| Windows x64 | [Windows ZIP](https://github.com/whale2186/pokewilds-f-server/releases/download/v0.1.2/pokewilds-f-server-v0.1.2-windows-x64.zip) | `pokewilds-f-server.exe shared 54555` |
+| Linux x64 (glibc) | [Linux tar.gz](https://github.com/whale2186/pokewilds-f-server/releases/download/v0.1.2/pokewilds-f-server-v0.1.2-linux-x64.tar.gz) | `./start-server.sh shared 54555` |
 
 Keep `jre/`, `lib/`, and the launcher together. Windows launchers are unsigned. Allow at least 2 GiB heap capacity plus room for the OS; first world generation can be expensive.
 
@@ -52,7 +52,7 @@ Shared terrain/world Pokémon, atomic client edits, battle reservations, origina
 
 This is an experimental trusted-LAN server. It does not authenticate human accounts or validate every game rule. Do not expose it as a hardened public Internet service. One island per session, incomplete progression/field-move coverage, and no crash-proof distributed transaction guarantee. Dedicated edits are resumed from the dedicated snapshot; they are not automatically converted back into solo saves. See [the guide](docs/MULTIPLAYER.md) for detailed limitations.
 
-Linux headless startup, socket tests, simulation and save/restart have been tested. Windows smoke checks under Wine do not establish native-Windows compatibility. No Android or macOS package is supplied in v0.1.1.
+Linux headless startup, socket tests, simulation and save/restart have been tested. Windows smoke checks under Wine do not establish native-Windows compatibility. No Android or macOS package is supplied in v0.1.2.
 
 ## Build from source
 
@@ -65,7 +65,7 @@ bash scripts/dev.sh build
 bash scripts/server.sh shared 54555
 python3 -m unittest discover -s tests -v
 python3 scripts/fetch-java-runtimes.py
-python3 scripts/package-release.py --version v0.1.1 --kind server --platform all
+python3 scripts/package-release.py --version v0.1.2 --kind server --platform all
 ```
 
 The dependency/asset JAR is kept out of Git history. Release packages include compiled engine/runtime JARs and launchers; platform packages also bundle Eclipse Temurin Java 11 with its notices. Local worlds, profiles, logs and credentials are excluded.

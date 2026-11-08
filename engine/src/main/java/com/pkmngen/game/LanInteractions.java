@@ -27,11 +27,24 @@ final class LanInteractions {
         int turn, move, hp, otherHp;
     }
     LanInteractions(Game game, LanCoop coop) { this.game = game; this.coop = coop; }
+    boolean busy() { return dialog!=null; }
+    LanBattleState battleView() {
+        if (!"battle".equals(kind) || !accepted || offered==null || opponent==null || committed) return null;
+        return LanBattleState.of(token,"pvp",turn+1,offered,opponent,status);
+    }
     boolean openNearby() {
         if (dialog != null) return true;
         for (Pose pose : coop.session().peers().values()) {
             if (near(pose) && game.player.facingPos().dst2(pose.x, pose.y) <= 8*8) {
                 peer = pose.id; token = UUID.randomUUID().toString(); leader = true;
+                if (LanBattleState.readVisual(pose.visual)!=null) {
+                    status=pose.name+": battling";
+                    show(new String[]{"Spectate", "Cancel"},choice->{
+                        String watching=pose.id; end(false);
+                        if(choice==0) coop.spectator.start(watching);
+                    });
+                    return true;
+                }
                 kind = null; status = pose.name; show(new String[]{"Battle", "Trade", "Cancel"}, choice -> {
                     if (choice == 2) { end(false); return; }
                     kind = choice == 0 ? "battle" : "trade";
@@ -62,7 +75,7 @@ final class LanInteractions {
                 if (packet == null || packet.type == null || packet.token == null || packet.token.length() != 36) continue;
                 if ("invite".equals(packet.type)) {
                     Pose pose = coop.session().peers().get(message.sender);
-                    if (dialog != null || coop.hud.typing() || !game.playerCanMove || pose == null || !near(pose)
+                    if (dialog != null || coop.spectator.watching() || coop.hud.typing() || !game.playerCanMove || pose == null || !near(pose)
                             || !("battle".equals(packet.kind) || "trade".equals(packet.kind))) continue;
                     peer = message.sender; token = packet.token; kind = packet.kind; leader = false;
                     status = pose.name + ": " + kind + "?";

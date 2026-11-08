@@ -23,6 +23,7 @@ class DrawMap extends DrawAction {
    float done3 = 0.0F;
    Color prevColor = new Color();
    Sprite redrawThis;
+   Sprite battleIcon;
    final com.badlogic.gdx.graphics.g2d.GlyphLayout remoteLabel = new com.badlogic.gdx.graphics.g2d.GlyphLayout();
 
    public DrawMap(GameProfiler profiler) {
@@ -131,6 +132,11 @@ class DrawMap extends DrawAction {
                   com.badlogic.gdx.math.Vector2 labelPosition = game.coop == null ? player.position : game.coop.renderPosition(player);
                   remoteLabel.setText(game.font, player.name);
                   game.font.draw(game.mapBatch, remoteLabel, labelPosition.x + 8 - remoteLabel.width / 2, labelPosition.y + 29);
+                  if (game.coop != null && game.coop.peerBattling(player.network.id)) {
+                     if (battleIcon == null) battleIcon = new Sprite(TextureCache.get(com.badlogic.gdx.Gdx.files.internal("pokeball1_color.png")));
+                     battleIcon.setBounds(labelPosition.x + 11 + remoteLabel.width / 2, labelPosition.y + 20, 10, 10);
+                     battleIcon.draw(game.mapBatch);
+                  }
                }
             }
          }

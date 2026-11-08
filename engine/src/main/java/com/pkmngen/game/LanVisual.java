@@ -7,6 +7,7 @@ import com.pkmngen.game.util.Json;
 /** Ephemeral appearance only: never installs a follower in the shared Pokemon map. */
 final class LanVisual {
     int texture, x, y, width, height;
+    LanBattleState battle;
     float offsetX, offsetY;
     boolean flipX, flipY;
     String species, direction, avatarSpecies;
@@ -23,6 +24,7 @@ final class LanVisual {
     static String capture(Game game) {
         LanVisual value = new LanVisual();
         Player player = game.player;
+        if (game.coop!=null) value.battle=game.coop.spectator.capture();
         for (Action action : game.actionStack) if (action instanceof Player.Emote) value.emote = ((Player.Emote)action).type;
         Sprite sprite = player.isSleeping ? player.sleepingSprite : player.currSprite;
         if (player.isFishing) {
@@ -75,6 +77,7 @@ final class LanVisual {
             if (value == null || !Float.isFinite(value.offsetX) || !Float.isFinite(value.offsetY)
                     || Math.abs(value.offsetX) > 64 || Math.abs(value.offsetY) > 64 || value.texture < 0 || value.texture > 4 || value.x < 0 || value.y < 0
                     || value.width < 1 || value.width > 64 || value.height < 1 || value.height > 64) return null;
+            if (value.battle!=null && !value.battle.valid()) value.battle=null;
             Sprite base = value.texture == 2 ? player.fishingSprites : value.texture == 3 ? player.sittingSprites
                     : value.texture == 4 ? player.sleepingSprite : player.standingSprites.get(value.texture == 1 ? "down_running" : "down");
             if (value.avatarSpecies != null) {

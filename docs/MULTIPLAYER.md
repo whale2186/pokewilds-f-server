@@ -196,3 +196,15 @@ Guest change detection compares the installed local replica with the current loc
 Only stale revisions can trigger a retry. A competing identical pickup/harvest cannot be rebased into a second reward. Final rejected edits restore the private inventory/party checkpoint; provisional retries are not reported as completed edits. `COOP_EDIT_REJECTED` logs list the affected keys and whether the rejection used stale revisions. Genuine competing edits can still be rejected.
 
 Deferred host saves write their prepared snapshot after the pending edit settles, avoiding an endless rescan of advancing creature timers. These changes do not establish crash-proof distributed persistence.
+
+## Battle status and spectating
+
+A Poké Ball beside a remote player's name means they are in a battle. It is visible even when the HUD is hidden. The player list also marks active battles.
+
+Face a battling player and interact, then choose **Spectate**. **F5** watches the nearest active battle within the nearby interaction area, on the same map/layer. **Esc** or the configured cancel key (X by default) leaves. Chat and normal gameplay input are suppressed while watching.
+
+The spectator display receives only the active combatants, HP/status, turn and battle text. It uses independent display sprites; it does not enter the viewer's battle model, change their party/bag, or send battle actions. It supports wild, trainer-only encounters and player battle presentation. Watching ends when the battle ends, its identity changes, the player disconnects/leaves the area, or the viewer enters their own battle. Source clients must be updated to publish battle status. No world-save format change is required.
+
+The display is a live battle summary with Pokémon sprites and narration; it does not replay every original attack effect/animation. Transported state is bounded by the existing 2048-character visual budget and is not persisted as a world resource.
+
+Optional graphical check: `python3 scripts/test_spectator.py` uses an isolated copy of `runtime/asd.sav` (or `PW_E2E_WORLD`). It runs a headless authority and two graphical clients, checking status icons, the Spectate option, HP/turn updates, local input isolation, leaving/rejoining, battle completion, PvP presentation using interaction copies, and source disconnect.
