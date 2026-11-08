@@ -68,6 +68,8 @@ public final class LanSafetyE2E extends Game {
             new DrawUseTossMenu.DropItem("log",3,packPosition,null).step(this);
             beforeEdits = coop.settledEdits(); stage = 1;
         } else if (stage == 1 && coop.settledEdits() > beforeEdits) {
+            com.badlogic.gdx.graphics.Pixmap image=com.badlogic.gdx.utils.ScreenUtils.getFrameBufferPixmap(0,0,Gdx.graphics.getWidth(),Gdx.graphics.getHeight());
+            try { com.badlogic.gdx.graphics.PixmapIO.writePNG(Gdx.files.local("item-packs.png"),image,-1,true); } finally { image.dispose(); }
             mark("OFFER_READY"); stage = 2;
         } else if (stage == 2 && Files.exists(barrier.resolve("a/result.json")) && Files.exists(barrier.resolve("b/result.json"))) {
             if (map.pokemon.values().stream().anyMatch(p -> "LANRACE".equals(p.nickname))) return;

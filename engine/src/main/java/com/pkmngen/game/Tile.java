@@ -1410,7 +1410,7 @@ public class Tile {
             this.overSprite = TextureCache.getTileSprite(name, offsetX, 0, 16, 32);
             this.isCuttable = true;
          } else if (this.nameUpper.equals("item_pack")) {
-            this.overSprite = new SmolSprite(TextureCache.get(Gdx.files.internal("menu/bag-sheet1.png")), 8, 26, 24, 24);
+            this.overSprite = ItemPackMenu.icon();
          } else if (this.nameUpper.contains("pkmnmansion")) {
             this.overSprite = TextureCache.getTileSprite("buildings/" + this.nameUpper, 0, 0, 16, 16);
          } else {
