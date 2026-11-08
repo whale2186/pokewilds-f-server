@@ -20,6 +20,7 @@ final class LanSpectator {
     private boolean releasing;
     private Texture pixel;
     private Pokemon ownView, enemyView;
+    private Sprite background;
     private String lastText;
     private java.util.List<String> narration=Collections.emptyList();
     private final Matrix4 projection=new Matrix4(), previousProjection=new Matrix4();
@@ -66,7 +67,7 @@ final class LanSpectator {
         if(!coop.ready()) { if(watching()) stop("Disconnected from battle"); return; }
         if(watching()) {
             if(capture()!=null) { stop("Your battle started"); return; }
-            if(Gdx.input.isKeyJustPressed(Keys.ESCAPE)||Gdx.input.isKeyJustPressed(InputProcessor.keyboardB)) { stop(null); return; }
+            if(Gdx.input.isKeyJustPressed(Keys.ESCAPE)||Gdx.input.isKeyJustPressed(InputProcessor.keyboardB)||exitClicked()) { stop(null); return; }
             Pose peer=coop.session().peers().get(target);
             if(peer==null) { stop("Player disconnected"); return; }
             int layer=game.map.tiles==game.map.overworldTiles?-1:game.map.interiorTilesIndex;
@@ -94,13 +95,12 @@ final class LanSpectator {
         if(pixel==null) { Pixmap map=new Pixmap(1,1,Pixmap.Format.RGBA8888); map.setColor(Color.WHITE); map.fill(); pixel=new Texture(map); map.dispose(); }
         game.uiBatch.setColor(color); game.uiBatch.draw(pixel,x,y,w,h);
     }
-    private void health(LanBattleState.Fighter fighter,float x,float y) {
-        rect(x-2,y-31,76,34,Color.WHITE); game.font.setColor(Color.BLACK);
-        game.font.draw(game.uiBatch,LanBattleState.shortText(fighter.name.isEmpty()?fighter.species:fighter.name,12)+" L"+fighter.level,x,y);
-        game.font.draw(game.uiBatch,fighter.hp+"/"+fighter.maxHp+" "+fighter.status,x,y-9);
-        rect(x,y-25,70,5,Color.DARK_GRAY);
-        float ratio=fighter.hp/(float)fighter.maxHp;
-        rect(x+1,y-24,68*ratio,3,ratio>.5f?Color.GREEN:ratio>.2f?Color.YELLOW:Color.RED);
+    private boolean exitClicked() {
+        if(!Gdx.input.justTouched()) return false;
+        float scale=Math.min(Gdx.graphics.getWidth()/160f,Gdx.graphics.getHeight()/144f);
+        float x=(Gdx.input.getX()-(Gdx.graphics.getWidth()-160*scale)/2)/scale;
+        float y=(Gdx.graphics.getHeight()-Gdx.input.getY()-(Gdx.graphics.getHeight()-144*scale)/2)/scale;
+        return x>=112 && x<=160 && y>=0 && y<=18;
     }
     void draw() {
         if(!watching() || state==null) return;
@@ -116,24 +116,28 @@ final class LanSpectator {
         try {
             rect(-ox,-oy,width,height,new Color(.06f,.07f,.1f,1));
             game.uiBatch.setColor(Color.WHITE);
-            rect(0,0,160,144,Color.WHITE);
+            if(background==null) background=BattleWindow.background();
+            BattleWindow.background(game,background);
             Player trainer=game.players.get(target);
             Sprite back=ownView!=null?new Sprite(ownView.backSprite):trainer==null?null:new Sprite(trainer.battleSprite);
             Sprite front=new Sprite(enemyView.sprite);
-            if(back!=null) { back.setBounds(6,35,56,56); back.draw(game.uiBatch); }
-            front.setBounds(98,64,56,56); front.draw(game.uiBatch);
-            game.font.getData().setScale(.62f); health(state.enemy,5,124);
-            if(state.friendly!=null) health(state.friendly,83,65);
-            rect(0,131,160,13,new Color(.06f,.07f,.1f,1));
-            Pose peer=coop.session().peers().get(target); game.font.setColor(Color.WHITE);
-            game.font.draw(game.uiBatch,"WATCHING "+LanBattleState.shortText(peer==null?"player":peer.name,18),4,140);
-            rect(0,0,160,31,Color.WHITE); game.font.setColor(Color.BLACK);
+            front.setPosition(front.getWidth()<=48?102:96,88); front.draw(game.uiBatch);
+            if(back!=null) { back.setPosition(ownView!=null?22:16,ownView!=null?62:49); back.draw(game.uiBatch); }
+            BattleWindow.health(game,state.enemy,false);
+            if(state.friendly!=null) BattleWindow.health(game,state.friendly,true);
+            game.uiBatch.draw(BattleWindow.texture("textbox_bg1.png"),0,0);
             if(!state.text.equals(lastText)) {
                 lastText=state.text;
-                narration=LanHudLayout.wrap(state.text,152,value->{com.badlogic.gdx.graphics.g2d.GlyphLayout g=new com.badlogic.gdx.graphics.g2d.GlyphLayout(game.font,value);return g.width;});
+                narration=LanHudLayout.wrap(state.text,144,value->value.length()*8);
             }
-            for(int i=0;i<Math.min(2,narration.size());i++) game.font.draw(game.uiBatch,narration.get(i),4,28-i*9);
-            game.font.draw(game.uiBatch,"Turn "+state.turn+" | Esc / X leave",4,8);
+            for(int i=0;i<Math.min(2,narration.size());i++) BattleWindow.text(game,narration.get(i),8,32-i*12,18);
+            game.font.getData().setScale(.55f); game.font.setColor(Color.BLACK);
+            Pose peer=coop.session().peers().get(target);
+            game.font.draw(game.uiBatch,"Watching "+LanBattleState.shortText(peer==null?"player":peer.name,14),8,11);
+            rect(112,1,47,16,new Color(.82f,.9f,1,1));
+            game.uiBatch.setColor(Color.WHITE);
+            BattleWindow.text(game,"EXIT",120,5,4);
+
         } finally {
             game.uiBatch.setColor(oldBatch); game.font.setColor(oldFont); game.font.getData().setScale(sx,sy);
             game.uiBatch.setProjectionMatrix(previousProjection);

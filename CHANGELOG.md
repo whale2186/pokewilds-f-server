@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.3 — Item packs and menus
+
+Drop items from the bag as packs that players can claim. Packs stay in the saved world until picked up.
+
+Fix Pokémon disappearing from view when positions overlap or after leaving and returning. Keep creatures on the correct floor and preserve them through save/reload.
+
+Spectating uses the normal battle layout. Player interactions have clearer menus and mouse support. Add Exit to the start menu and hide Save in multiplayer.
+
 ## v0.1.2 — Battle status and spectating
 
 Poké Ball icons beside battling players' names. Interact and choose Spectate, or press F5 nearby. Live combatant sprites, HP/status, turns and narration; Esc/X leaves. Watching stops on battle end, departure or disconnect. Spectators cannot issue battle commands or alter their party/items through the viewer. Original attack effects are not replayed.

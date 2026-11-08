@@ -51,7 +51,21 @@ public final class LanSafetyE2E extends Game {
             fixture.position.set(edit); fixture.mapTiles = map.overworldTiles; fixture.canMove = false;
             fixture.new RemoveFromInventory().firstStep(this);
             fixture.canMove = false;
-            map.overworldTiles.get(edit).hasItem = "stone"; map.overworldTiles.get(edit).hasItemAmount = 2;
+            Tile ground=map.overworldTiles.get(edit);
+            ground.nameUpper=""; ground.hasItem=null; ground.init();
+            player.setItemAmount("stone",2);
+            new DrawUseTossMenu.DropItem("stone",2,edit,null).step(this);
+            if(!"item_pack".equals(map.overworldTiles.get(edit).nameUpper) || amount("stone")>0)
+                throw new AssertionError("Bag drop did not create a pack and consume inventory");
+            Pokemon placed=new Pokemon("abra",6); placed.nickname="LANPEN"; placed.previousOwner=player;
+            placed.position.set(edit).add(32,0); placed.mapTiles=map.overworldTiles; placed.canMove=false;
+            player.pokemon.add(placed); placed.new RemoveFromInventory().firstStep(this); placed.canMove=false;
+            Vector2 packPosition=edit.cpy().add(16,-16);
+            Tile clear=new Tile("green9",packPosition.cpy());
+            clear.routeBelongsTo=map.overworldTiles.get(packPosition).routeBelongsTo;
+            map.overworldTiles.put(packPosition,clear);
+            player.setItemAmount("log",3);
+            new DrawUseTossMenu.DropItem("log",3,packPosition,null).step(this);
             beforeEdits = coop.settledEdits(); stage = 1;
         } else if (stage == 1 && coop.settledEdits() > beforeEdits) {
             mark("OFFER_READY"); stage = 2;
@@ -68,6 +82,10 @@ public final class LanSafetyE2E extends Game {
                 throw new AssertionError("Saved tile differs from committed state");
             for (Network.PokemonData data : saved.overworldPokemon.values()) if ("LANRACE".equals(data.nickname))
                 throw new AssertionError("Taken Pokemon survived in host save");
+            if(saved.overworldPokemon.values().stream().noneMatch(p -> "LANPEN".equals(p.nickname))) throw new AssertionError("Placed Pokemon missing from saved world");
+            boolean storedPack=false;
+            for(Network.TileData data:saved.mapTiles.tiles) if(data.pos.equals(edit.cpy().add(16,-16)) && "item_pack".equals(data.tileNameUpper) && data.hasItemAmount==3) storedPack=true;
+            if(!storedPack) throw new AssertionError("Unclaimed pack missing from saved world");
             mark("HOST_COMMITTED_SAVE_OK"); stage = 4;
         } else if (stage == 4 && coop.session().peers().size() == 1 && players.isEmpty()) {
             mark("HOST_CLEAN_EXIT"); Gdx.app.exit();
@@ -94,8 +112,13 @@ public final class LanSafetyE2E extends Game {
         } else if (stage == 1 && Files.exists(barrier.resolve("go"))) {
             beforeEdits = coop.settledEdits();
             fixture.new AddToInventory(fixture.position.cpy(), null).firstStep(this);
-            player.setItemAmount("stone", initialStones + 2);
-            map.overworldTiles.get(edit).hasItem = null; map.overworldTiles.get(edit).hasItemAmount = 0;
+            Tile pack=map.overworldTiles.get(edit);
+            if(!"item_pack".equals(pack.nameUpper)) throw new AssertionError("Dropped pack missing on guest");
+            ItemPackMenu menu=new ItemPackMenu(edit);
+            InputProcessor.aJustPressed=true;
+            uiBatch.begin();
+            try { menu.step(this); menu.step(this); menu.step(this); } finally { uiBatch.end(); InputProcessor.clearControls(); }
+            if(pack.hasItem!=null || !pack.nameUpper.isEmpty()) throw new AssertionError("Claim left pack contents behind");
             Files.write(Paths.get("taken"), new byte[]{1});
             String other = role.equals("a") ? "b" : "a";
             long deadline = System.nanoTime() + 10_000_000_000L;
@@ -151,6 +174,9 @@ public final class LanSafetyE2E extends Game {
             Tile tile = map.overworldTiles.get(edit);
             if (tile.hasItem != null || tile.hasItemAmount != 0 || map.pokemon.values().stream().anyMatch(p -> "LANRACE".equals(p.nickname)))
                 throw new AssertionError("Restarted host restored consumed resources");
+            if(map.pokemon.values().stream().noneMatch(p -> "LANPEN".equals(p.nickname))) throw new AssertionError("Placed Pokemon disappeared after world reload");
+            Tile pack=map.overworldTiles.get(edit.cpy().add(16,-16));
+            if(!"item_pack".equals(pack.nameUpper) || pack.hasItemAmount!=3) throw new AssertionError("Unclaimed pack disappeared after world reload");
             mark("HOST_WORLD_RELOAD_OK"); stage = 1;
         } else if (Files.exists(barrier.resolve("restore-a/restore-done")) && Files.exists(barrier.resolve("restore-b/restore-done"))
                 && coop.session().peers().size() == 1 && players.isEmpty()) {
@@ -168,10 +194,14 @@ public final class LanSafetyE2E extends Game {
         }
         if (player.currPokemon == null || !player.pokemon.contains(player.currPokemon) || !"".equals(player.currFieldMove))
             throw new AssertionError("Restored selection/HM state is invalid");
+        Pokemon placed=map.pokemon.values().stream().filter(p -> "LANPEN".equals(p.nickname)).findFirst().orElseThrow(() -> new AssertionError("Placed Pokemon missing after reconnect"));
+        map.cacheBounds.set(placed.position.x-32,placed.position.y-32,64,64); map.cacheOnscreenPokemon(this);
+        if(!map.onscreenPokemon.contains(placed) || placed.drawLower==null || placed.drawUpper==null) throw new AssertionError("Placed Pokemon not drawable after reconnect");
         Files.write(Paths.get("restore-done"), new byte[]{1}); mark("PRIVATE_RESTORE_OK"); Gdx.app.exit();
     }
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
+        config.setInitialVisible(false);
         config.setTitle("PokeWilds LAN safety " + System.getProperty("e2e.role"));
         config.setWindowedMode(480,432); config.setForegroundFPS(60); config.setIdleFPS(60); config.disableAudio(true);
         new Lwjgl3Application(new LanSafetyE2E(args), config);

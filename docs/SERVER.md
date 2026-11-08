@@ -6,14 +6,20 @@ A headless dedicated server for [PokeWilds-F](https://github.com/whale2186/pokew
 
 [Download server releases](https://github.com/whale2186/pokewilds-f-server/releases) · [Client releases](https://github.com/whale2186/pokewilds-f/releases) · [Multiplayer guide](docs/MULTIPLAYER.md)
 
+## Client preview
+
+A client view from a local multiplayer session. The dedicated server runs without a game window.
+
+<img src="docs/screenshots/multiplayer.png" alt="PokeWilds-F multiplayer client showing two players on the same island" width="800">
+
 ## Run a server
 
-Download and extract the **v0.1.2** package for your operating system. **Java 11 is bundled**, and the server needs no display, sound device, or local game client.
+Download and extract the **v0.1.3** package for your operating system. **Java 11 is bundled**, and the server needs no display, sound device, or local game client.
 
 | Platform | Download | Launch |
 |---|---|---|
-| Windows x64 | [Windows ZIP](https://github.com/whale2186/pokewilds-f-server/releases/download/v0.1.2/pokewilds-f-server-v0.1.2-windows-x64.zip) | `pokewilds-f-server.exe shared 54555` |
-| Linux x64 (glibc) | [Linux tar.gz](https://github.com/whale2186/pokewilds-f-server/releases/download/v0.1.2/pokewilds-f-server-v0.1.2-linux-x64.tar.gz) | `./start-server.sh shared 54555` |
+| Windows x64 | [Windows ZIP](https://github.com/whale2186/pokewilds-f-server/releases/download/v0.1.3/pokewilds-f-server-v0.1.3-windows-x64.zip) | `pokewilds-f-server.exe shared 54555` |
+| Linux x64 (glibc) | [Linux tar.gz](https://github.com/whale2186/pokewilds-f-server/releases/download/v0.1.3/pokewilds-f-server-v0.1.3-linux-x64.tar.gz) | `./start-server.sh shared 54555` |
 
 Keep `jre/`, `lib/`, and the launcher together. Windows launchers are unsigned. Allow at least 2 GiB heap capacity plus room for the OS; first world generation can be expensive.
 
@@ -48,11 +54,11 @@ Ctrl+C also attempts an orderly save. Closing standard input leaves the server r
 
 ## What it supports
 
-Shared terrain/world Pokémon, atomic client edits, battle reservations, original island generation through a headless adapter, creature roaming/habitat timers, world clock, persistence and player pose restoration. Player bags and parties remain private client checkpoints. Server chat routing uses the same authenticated socket identities as the client protocol.
+Shared terrain/world Pokémon, atomic client edits, battle reservations, original island generation through a headless adapter, creature roaming/habitat timers, world clock, persistence and player pose restoration. Player bags and parties remain private client checkpoints. Updated clients publish battle status and support read-only spectating. Server chat routing uses the same authenticated socket identities as the client protocol.
 
 This is an experimental trusted-LAN server. It does not authenticate human accounts or validate every game rule. Do not expose it as a hardened public Internet service. One island per session, incomplete progression/field-move coverage, and no crash-proof distributed transaction guarantee. Dedicated edits are resumed from the dedicated snapshot; they are not automatically converted back into solo saves. See [the guide](docs/MULTIPLAYER.md) for detailed limitations.
 
-Linux headless startup, socket tests, simulation and save/restart have been tested. Windows smoke checks under Wine do not establish native-Windows compatibility. No Android or macOS package is supplied in v0.1.2.
+Linux headless startup, socket tests, simulation and save/restart have been tested. Windows smoke checks under Wine do not establish native-Windows compatibility. No Android or macOS package is supplied in v0.1.3.
 
 ## Build from source
 
@@ -65,7 +71,7 @@ bash scripts/dev.sh build
 bash scripts/server.sh shared 54555
 python3 -m unittest discover -s tests -v
 python3 scripts/fetch-java-runtimes.py
-python3 scripts/package-release.py --version v0.1.2 --kind server --platform all
+python3 scripts/package-release.py --version v0.1.3 --kind server --platform all
 ```
 
 The dependency/asset JAR is kept out of Git history. Release packages include compiled engine/runtime JARs and launchers; platform packages also bundle Eclipse Temurin Java 11 with its notices. Local worlds, profiles, logs and credentials are excluded.

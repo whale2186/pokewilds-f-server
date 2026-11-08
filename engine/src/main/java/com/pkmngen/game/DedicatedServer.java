@@ -86,7 +86,9 @@ public final class DedicatedServer {
         world.spawn = world.edges.get(0).cpy();
         for (Map.Entry<Vector2, Network.PokemonData> entry : map.overworldPokemon.entrySet()) {
             LanCoop.CreatureInfo creature = new LanCoop.CreatureInfo();
-            creature.data = entry.getValue(); creature.data.position = entry.getKey();
+            creature.data = entry.getValue();
+            Vector2 position = entry.getKey();
+            creature.data.position = new Vector2((float)Math.floor(position.x/16)*16, (float)Math.floor(position.y/16)*16);
             creature.layer = creature.data.isInterior ? creature.data.interiorIndex : -1;
             creature.direction = "down";
             state.resources.put("pokemon:" + UUID.randomUUID(), Json.gson.toJson(creature));

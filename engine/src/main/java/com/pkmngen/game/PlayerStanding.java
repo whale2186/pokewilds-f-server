@@ -527,7 +527,7 @@ class PlayerStanding extends Action {
                if (this.currTile != null && this.currTile.name.equals("ice2")) {
                   Vector2 targetPos = game.player.facingPos();
                   Tile nextTile = game.map.tiles.get(targetPos);
-                  Pokemon pokemon = game.map.pokemon.get(targetPos);
+                  Pokemon pokemon = game.map.pokemonAt(targetPos);
                   boolean isSolid = nextTile == null;
                   isSolid |= nextTile != null && nextTile.isSolid;
                   isSolid |= pokemon != null;
@@ -1684,7 +1684,7 @@ class PlayerStanding extends Action {
                      } else {
                         game.insertAction(new PlayerMoving(game, this.alternate));
                      }
-                  } else if (game.map.pokemon.containsKey(newPos) && game.map.pokemon.get(newPos).mapTiles == game.map.tiles) {
+                  } else if (game.map.pokemonAt(newPos) != null) {
                      game.insertAction(new PlayerBump(game));
                   } else {
                      if (game.player.currFieldMove.equals("RIDE")) {
@@ -1985,7 +1985,7 @@ class PlayerStanding extends Action {
                      game.insertAction(new PlayerBump(game, this.player));
                   } else if (temp.isSolid) {
                      game.insertAction(new PlayerBump(game, this.player));
-                  } else if (game.map.pokemon.containsKey(newPos) && game.map.pokemon.get(newPos).mapTiles == game.map.tiles) {
+                  } else if (game.map.pokemonAt(newPos) != null) {
                      game.insertAction(new PlayerBump(game, this.player));
                   } else {
                      if (game.player.currFieldMove.equals("RIDE")) {

@@ -1206,7 +1206,7 @@ public class Pokemon extends OverworldThing {
             );
          } else {
             game.player.pokemon.add(Pokemon.this);
-            game.map.pokemon.remove(this.position);
+            game.map.removePokemon(Pokemon.this);
             Pokemon.this.removeDrawActions(game);
             Action newAction;
             if (Pokemon.this.isEgg && Pokemon.this.previousOwner != game.player) {
@@ -1486,7 +1486,7 @@ public class Pokemon extends OverworldThing {
 
       @Override
       public void firstStep(Game game) {
-         game.map.pokemon.put(Pokemon.this.position.cpy(), Pokemon.this);
+         game.map.indexPokemon(Pokemon.this.position.cpy(), Pokemon.this);
          Pokemon.this.standingAction = this;
          Pokemon.this.currOwSprite = Pokemon.this.standingSprites.get(Pokemon.this.dirFacing);
          game.insertAction(Pokemon.this.new DrawLower());
@@ -1682,7 +1682,7 @@ public class Pokemon extends OverworldThing {
                            game.map.pokemon.remove(Pokemon.this.position);
                         }
 
-                        game.map.pokemon.put(this.newPos.cpy(), Pokemon.this);
+                        game.map.indexPokemon(this.newPos.cpy(), Pokemon.this);
                         Pokemon.this.dirFacing = move;
                         game.actionStack.remove(this);
                         Action action = Pokemon.this.new Moving(1, 1.5F, this.alternate, this);
@@ -2271,7 +2271,7 @@ public class Pokemon extends OverworldThing {
                Game.staticGame.map.pokemon.remove(Pokemon.this.position);
             }
 
-            Game.staticGame.map.pokemon.put(this.targetPos.cpy(), Pokemon.this);
+            Game.staticGame.map.indexPokemon(this.targetPos.cpy(), Pokemon.this);
          }
 
          Pokemon.this.canMove = true;
@@ -2357,7 +2357,7 @@ public class Pokemon extends OverworldThing {
 
             pokemonEgg.mapTiles = Pokemon.this.mapTiles;
             pokemonEgg.position = this.initialPos.cpy();
-            game.map.pokemon.put(pokemonEgg.position.cpy(), pokemonEgg);
+            game.map.indexPokemon(pokemonEgg.position, pokemonEgg);
             game.insertAction(pokemonEgg.new Standing());
          }
 
@@ -2460,7 +2460,7 @@ public class Pokemon extends OverworldThing {
          }
 
          game.player.pokemon.remove(Pokemon.this);
-         game.map.pokemon.put(Pokemon.this.position.cpy(), Pokemon.this);
+         game.map.indexPokemon(Pokemon.this.position.cpy(), Pokemon.this);
          Pokemon.this.moveDirs.clear();
          Pokemon.this.numMoves.clear();
          Pokemon.this.ledgeJumps.clear();
@@ -2469,7 +2469,10 @@ public class Pokemon extends OverworldThing {
          }
 
          game.actionStack.remove(this);
-         Pokemon.this.interiorIndex = game.map.interiorTilesIndex;
+         Pokemon.this.mapTiles = game.map.tiles;
+         Pokemon.this.interiorIndex = game.map.tiles == game.map.overworldTiles ? 100 : game.map.interiorTilesIndex;
+         Pokemon.this.drawThisFrame = true;
+         Pokemon.this.isRunning = false;
          game.insertAction(Pokemon.this.new Standing());
       }
 
@@ -2876,7 +2879,7 @@ public class Pokemon extends OverworldThing {
                Game.staticGame.map.pokemon.remove(Pokemon.this.position);
             }
 
-            Game.staticGame.map.pokemon.put(this.targetPos.cpy(), Pokemon.this);
+            Game.staticGame.map.indexPokemon(this.targetPos.cpy(), Pokemon.this);
          }
 
          Pokemon.this.canMove = true;
@@ -2970,7 +2973,7 @@ public class Pokemon extends OverworldThing {
       @Override
       public void firstStep(Game game) {
          this.moveTimer = game.map.rand.nextInt(180) + 60;
-         game.map.pokemon.put(Pokemon.this.position.cpy(), Pokemon.this);
+         game.map.indexPokemon(Pokemon.this.position.cpy(), Pokemon.this);
          Pokemon.this.standingAction = this;
          Pokemon.this.currOwSprite = Pokemon.this.standingSprites.get(Pokemon.this.dirFacing);
          game.insertAction(Pokemon.this.new DrawLower());
@@ -3262,7 +3265,8 @@ public class Pokemon extends OverworldThing {
                if (Pokemon.this.isSkittish()
                   && this.moveTimer % 32 == 0
                   && this.runTimer <= 0
-                  && Pokemon.this.previousOwner != game.player
+                  && (game.coop == null ? Pokemon.this.previousOwner != game.player
+                        : Pokemon.this.previousOwner == null && Pokemon.this.lanOwnerId == null)
                   && !Pokemon.this.isRunning
                   && !Pokemon.this.isCharmed) {
                   float dst2 = Pokemon.this.position.dst2(game.player.position);

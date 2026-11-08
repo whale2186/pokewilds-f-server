@@ -1279,8 +1279,8 @@ public class PkmnMap {
          for (Vector2 pos : saveData.overworldPokemon.keySet()) {
             Network.PokemonDataBase pokemonData = saveData.overworldPokemon.get(pos);
             Pokemon pokemon = new Pokemon(pokemonData);
-            pokemon.position = pos.cpy();
-            game.map.pokemon.put(pos, pokemon);
+            pokemon.position = new Vector2((float)Math.floor(pos.x/16)*16, (float)Math.floor(pos.y/16)*16);
+            game.map.indexPokemon(pokemon.position, pokemon);
             game.insertAction(pokemon.new Standing());
          }
 
@@ -1496,8 +1496,8 @@ public class PkmnMap {
          for (Vector2 pos : mapData.overworldPokemon.keySet()) {
             Network.PokemonDataBase pokemonData = mapData.overworldPokemon.get(pos);
             Pokemon pokemon = new Pokemon(pokemonData);
-            pokemon.position = pos.cpy();
-            this.pokemon.put(pos, pokemon);
+            pokemon.position = new Vector2((float)Math.floor(pos.x/16)*16, (float)Math.floor(pos.y/16)*16);
+            this.indexPokemon(pokemon.position, pokemon);
             game.insertAction(pokemon.new Standing());
          }
 
@@ -1666,6 +1666,43 @@ public class PkmnMap {
       }
    }
 
+   void indexPokemon(Vector2 position, Pokemon value) {
+      if (Game.staticGame.coop != null) LanCoop.indexValue(this.pokemon, position, value);
+      else this.pokemon.put(position.cpy(), value);
+      this.refreshOnscreenPokemon = true;
+   }
+
+   void removePokemon(Pokemon value) {
+      this.pokemon.values().removeIf(p -> p == value);
+      this.refreshOnscreenPokemon = true;
+   }
+
+   Pokemon pokemonAt(Vector2 position) {
+      Pokemon direct = this.pokemon.get(position);
+      if (direct != null && direct.mapTiles == this.tiles) return direct;
+      for (Map.Entry<Vector2,Pokemon> entry : this.pokemon.entrySet()) {
+         Vector2 key = entry.getKey();
+         if (entry.getValue().mapTiles == this.tiles && Math.floor(key.x/16)*16 == position.x
+               && Math.floor(key.y/16)*16 == position.y) return entry.getValue();
+      }
+      return null;
+   }
+
+   // Spatial keys may include a small collision offset. Render every identity in
+   // its tile and layer, including two creatures sharing a streamed position.
+   private Map<Vector2,ArrayList<Pokemon>> visiblePokemonByTile() {
+      Map<Vector2,ArrayList<Pokemon>> grouped = new HashMap<>();
+      for (Map.Entry<Vector2,Pokemon> entry : this.pokemon.entrySet()) {
+         Pokemon value = entry.getValue();
+         if (value.mapTiles != this.tiles) continue;
+         Vector2 key = entry.getKey();
+         Vector2 cell = new Vector2((float)Math.floor(key.x/16)*16,(float)Math.floor(key.y/16)*16);
+         ArrayList<Pokemon> row = grouped.computeIfAbsent(cell, ignored -> new ArrayList<>());
+         if (!row.contains(value)) row.add(value);
+      }
+      return grouped;
+   }
+
    public void cacheOnscreenPokemon(Game game) {
       this.refreshOnscreenPokemon = false;
       System.out.println("Caching onscreen Pokemon");
@@ -1679,16 +1716,17 @@ public class PkmnMap {
       int row1 = (int)(this.cacheBounds.y / layerTileHeight) - 3;
       int row2 = (int)((this.cacheBounds.y + this.cacheBounds.height + layerTileHeight) / layerTileHeight) + 3;
       Vector2 position = new Vector2();
+      Map<Vector2,ArrayList<Pokemon>> visiblePokemon = visiblePokemonByTile();
 
       for (int row = row2; row >= row1; row--) {
          PkmnMap.YSort ySort = new PkmnMap.YSort(row * 16);
 
          for (int col = col1; col < col2; col++) {
             position.set(col * 16, row * 16);
-            Pokemon pokemon = this.pokemon.get(position);
-            if (pokemon != null) {
-               this.onscreenPokemon.add(pokemon);
-               ySort.ySortPokemon.add(pokemon);
+            ArrayList<Pokemon> occupants = visiblePokemon.get(position);
+            if (occupants != null) {
+               this.onscreenPokemon.addAll(occupants);
+               ySort.ySortPokemon.addAll(occupants);
             }
 
             Tile tile = this.tiles.get(position);
@@ -1741,6 +1779,7 @@ public class PkmnMap {
       int row1 = (int)(this.cacheBounds.y / layerTileHeight) - 3;
       int row2 = (int)((this.cacheBounds.y + this.cacheBounds.height + layerTileHeight) / layerTileHeight) + 3;
       Vector2 position = new Vector2();
+      Map<Vector2,ArrayList<Pokemon>> visiblePokemon = visiblePokemonByTile();
 
       for (int row = row2; row >= row1; row--) {
          PkmnMap.YSort ySort = new PkmnMap.YSort(row * 16);
@@ -1748,16 +1787,14 @@ public class PkmnMap {
          for (int col = col1; col < col2; col++) {
             position.set(col * 16, row * 16);
             Tile tile = this.tiles.get(position);
-            Pokemon pokemon = this.pokemon.get(position);
-            if (pokemon != null) {
-               this.onscreenPokemon.add(pokemon);
-               ySort.ySortPokemon.add(pokemon);
-               if (pokemon.isEgg && pokemon.mapTiles == this.tiles && pokemon.standingAction instanceof Pokemon.Standing) {
-                  this.onscreenEggs.add(pokemon);
-               }
+            ArrayList<Pokemon> occupants = visiblePokemon.get(position);
+            if (occupants != null) for (Pokemon occupant : occupants) {
+               this.onscreenPokemon.add(occupant);
+               ySort.ySortPokemon.add(occupant);
+               if (occupant.isEgg && occupant.standingAction instanceof Pokemon.Standing) this.onscreenEggs.add(occupant);
             }
 
-            pokemon = this.burrowedPokemon.get(position);
+            Pokemon pokemon = this.burrowedPokemon.get(position);
             if (pokemon != null) {
                this.onscreenBurrowed.add(pokemon);
             }

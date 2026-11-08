@@ -97,7 +97,7 @@ class DrawUseTossMenu extends Menu {
             } else if (game.battle.drawAction == null) {
                Vector2 pos = game.player.facingPos();
                Tile currTile = game.map.tiles.get(pos);
-               if (currTile != null && !currTile.isSolid && !currTile.isSign()) {
+               if (canDropOn(currTile)) {
                   this.disabled = true;
                   game.insertAction(new DrawUseTossMenu.SelectAmount(this.itemName, pos, this));
                } else {
@@ -440,6 +440,11 @@ class DrawUseTossMenu extends Menu {
       }
    }
 
+   static boolean canDropOn(Tile tile) {
+      return tile != null && !tile.isSolid && !tile.isWater && !tile.isLedge && !tile.isSign()
+            && tile.nameUpper.isEmpty() && tile.hasItem == null;
+   }
+
    public static class DropItem extends Action {
       public Action.Layer layer = Action.Layer.gui_0;
       Vector2 pos;
@@ -472,19 +477,22 @@ class DrawUseTossMenu extends Menu {
 
       @Override
       public void step(Game game) {
+         Tile tile = game.map.tiles.get(this.pos);
+         Integer available = game.player.getItemAmount(this.item);
+         if (!canDropOn(tile) || this.amount < 1 || this.amount > 999 || available == null || available < this.amount) {
+            game.actionStack.remove(this);
+            game.insertAction(new DisplayText(game, "Cannot drop here. Choose clear ground.", null, null, this.nextAction));
+            return;
+         }
+         Network.TileData data = new Network.TileData(tile);
+         data.tileNameUpper = "item_pack";
+         data.hasItem = this.item; data.hasItemAmount = this.amount;
+         Tile newTile = Tile.get(data, tile.routeBelongsTo);
          game.player.setItemAmount(this.item, game.player.getItemAmount(this.item) - this.amount);
-         if (game.player.getItemAmount(this.item) <= 0) {
-            game.player.removeItem(this.item);
-         }
-
-         Tile newTile = new Tile(this.currTile.name, "pokeball1", this.pos.cpy(), true, this.currTile.routeBelongsTo);
-         newTile.hasItem = this.item;
-         newTile.hasItemAmount = this.amount;
-         if (game.type != Game.Type.CLIENT) {
-            game.map.tiles.put(this.pos.cpy(), newTile);
-         } else {
-            game.client.sendTCP(new Network.TileData(newTile));
-         }
+         if (game.player.getItemAmount(this.item) <= 0) game.player.removeItem(this.item);
+         if (game.type != Game.Type.CLIENT) game.map.tiles.put(this.pos.cpy(), newTile);
+         else game.client.sendTCP(new Network.TileData(newTile));
+         game.map.refreshCache = true;
 
          game.actionStack.remove(this);
          game.insertAction(this.nextAction);

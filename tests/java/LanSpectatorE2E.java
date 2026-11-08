@@ -22,6 +22,8 @@ public final class LanSpectatorE2E extends Game {
     private Battle ownBattle;
     private long settled;
     private Object interaction;
+    private int menuPhase;
+    private DrawPlayerMenu startMenu;
     LanSpectatorE2E(String[] args) { super(args,2); }
     static Object get(Object obj,String name) throws Exception { java.lang.reflect.Field f=obj.getClass().getDeclaredField(name);f.setAccessible(true);return f.get(obj); }
     static void set(Object obj,String name,Object value) throws Exception { java.lang.reflect.Field f=obj.getClass().getDeclaredField(name);f.setAccessible(true);f.set(obj,value); }
@@ -31,6 +33,7 @@ public final class LanSpectatorE2E extends Game {
     @Override public void render() {
         try {
             super.render();
+            InputProcessor.clearControls();
             if(System.nanoTime()-started>150_000_000_000L) throw new AssertionError("Spectator deadline phase="+phase);
             if(coop!=null && coop.problem()!=null) throw new AssertionError(coop.problem());
             if(coop==null || !coop.ready()) return;
@@ -78,7 +81,56 @@ public final class LanSpectatorE2E extends Game {
         LanBattleState want=Json.gson.fromJson(new String(Files.readAllBytes(barrier.resolve(expected)),"UTF-8"),LanBattleState.class);
         return actual!=null && actual.friendly.hp==want.friendly.hp && actual.enemy.hp==want.enemy.hp && actual.turn==want.turn;
     }
+    private void checkCreatureVisibility() {
+        Map<com.badlogic.gdx.math.Vector2,Pokemon> saved=new HashMap<>(map.pokemon);
+        com.badlogic.gdx.math.Rectangle bounds=new com.badlogic.gdx.math.Rectangle(map.cacheBounds);
+        com.badlogic.gdx.math.Vector2 pos=coop.sharedSpawn();
+        Pokemon first=new Pokemon("machop",6), second=new Pokemon("pikachu",6), upstairs=new Pokemon("rattata",6);
+        first.mapTiles=second.mapTiles=map.tiles; upstairs.mapTiles=map.getInteriorLayer(0);
+        first.position.set(pos); second.position.set(pos); upstairs.position.set(pos);
+        try {
+            map.indexPokemon(pos,first); map.indexPokemon(pos,second); map.indexPokemon(pos,upstairs);
+            map.cacheBounds.set(pos.x-32,pos.y-32,64,64); map.cacheOnscreenPokemon(this);
+            if(!map.onscreenPokemon.contains(first) || !map.onscreenPokemon.contains(second) || map.onscreenPokemon.contains(upstairs)
+                    || map.pokemonAt(pos)==null || map.pokemonAt(pos).mapTiles!=map.tiles) throw new AssertionError("Overlapping/layered creatures became invisible");
+            map.cacheBounds.set(pos.x+2000,pos.y+2000,64,64); map.cacheOnscreenPokemon(this);
+            if(map.onscreenPokemon.contains(first)) throw new AssertionError("Far creature left in render cache");
+            map.cacheBounds.set(pos.x-32,pos.y-32,64,64); map.cacheOnscreenPokemon(this);
+            if(!map.onscreenPokemon.contains(first) || !map.onscreenPokemon.contains(second)) throw new AssertionError("Creature missing after long-distance return");
+            map.removePokemon(first);
+            if(map.pokemon.containsValue(first) || !map.pokemon.containsValue(second) || !map.pokemon.containsValue(upstairs)) throw new AssertionError("Pickup removed another creature at same coordinates");
+        } finally {
+            map.pokemon.clear(); map.pokemon.putAll(saved); map.cacheBounds.set(bounds); map.cacheOnscreenPokemon(this);
+        }
+    }
     private void viewerStep() throws Exception {
+        if(menuPhase==0) {
+            checkCreatureVisibility();
+            startMenu=new DrawPlayerMenu(this,new SetField(this,"playerCanMove",true,null));
+            if(Arrays.asList(startMenu.entries).contains("SAVE")) throw new AssertionError("Guest menu exposes SAVE");
+            playerCanMove=false; insertAction(startMenu); menuPhase=1; return;
+        }
+        if(menuPhase==1) {
+            if(startMenu.cursorDelay<3) { startMenu.cursorDelay=3; return; }
+            picture("multiplayer-start-menu.png");
+            if(!startMenu.entries[startMenu.currIndex].equals("EXIT")) { InputProcessor.downJustPressed=true; return; }
+            InputProcessor.aJustPressed=true; menuPhase=2; return;
+        }
+        if(menuPhase==2) {
+            DrawExitMenu confirm=null;
+            for(Action action:actionStack) if(action instanceof DrawExitMenu) confirm=(DrawExitMenu)action;
+            if(confirm==null || (Integer)get(confirm,"frames")<3) return;
+            picture("exit-confirmation.png"); InputProcessor.bJustPressed=true; menuPhase=3; return;
+        }
+        if(menuPhase==3) {
+            if(!actionStack.contains(startMenu)) return;
+            if(startMenu.disabled) throw new AssertionError("Back left start menu disabled");
+            InputProcessor.bJustPressed=true; menuPhase=4; return;
+        }
+        if(menuPhase==4) {
+            if(actionStack.contains(startMenu) || !playerCanMove) return;
+            menuPhase=5;
+        }
         if(phase==0) {
             player.position.set(coop.sharedSpawn()).add(16,0); player.dirFacing="left";
             party=new ArrayList<>(player.pokemon);inventory=new HashMap<>(player.getItemsDict());selected=player.currPokemon;ownBattle=battle;settled=coop.settledEdits();phase=1;
@@ -92,7 +144,7 @@ public final class LanSpectatorE2E extends Game {
             phase=2;
         } else if(phase==2) {
             Object dialog=get(get(coop,"interactions"),"dialog");
-            if(dialog!=null && (Integer)get(dialog,"frames")>=3) InputProcessor.aJustPressed=true;
+            if(dialog!=null && (Integer)get(dialog,"frames")>=3) { picture("interaction-menu.png"); InputProcessor.aJustPressed=true; }
             if(!coop.spectator.watching()) return;
             InputProcessor.aPressed=InputProcessor.leftPressed=true;new InputProcessor().step(this);
             if(InputProcessor.aPressed || InputProcessor.leftPressed) throw new AssertionError("Spectator input leaked");
@@ -112,11 +164,11 @@ public final class LanSpectatorE2E extends Game {
         } else if(phase==6 && received("pvp-expected.json")) {
             unchanged();picture("pvp-spectate.png");mark("pvp-updated");phase=7;
         } else if(phase==7 && !coop.session().peers().containsKey(target) && !coop.spectator.watching()) {
-            unchanged();mark("PASS-viewer");Gdx.app.exit();
+            unchanged();mark("PASS-viewer");coop.requestExit();
         }
     }
     public static void main(String[] args) {
-        Lwjgl3ApplicationConfiguration c=new Lwjgl3ApplicationConfiguration();c.setTitle("Spectator test");c.setWindowedMode(640,576);c.setForegroundFPS(60);c.setIdleFPS(60);c.disableAudio(true);
+        Lwjgl3ApplicationConfiguration c=new Lwjgl3ApplicationConfiguration();c.setTitle("Spectator test");c.setInitialVisible(false);c.setWindowedMode(640,576);c.setForegroundFPS(60);c.setIdleFPS(60);c.disableAudio(true);
         new Lwjgl3Application(new LanSpectatorE2E(args),c);
     }
 }

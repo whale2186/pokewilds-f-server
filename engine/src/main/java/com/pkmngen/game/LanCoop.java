@@ -52,6 +52,19 @@ public final class LanCoop implements AutoCloseable {
     private long lastPose;
     private String pendingTransaction;
     private boolean saveRequested;
+    private boolean exitRequested, exitSaving;
+    private java.util.concurrent.Future<?> exitFlush;
+    void requestExit() { exitRequested = true; }
+    private void finishExit() {
+        if (!exitRequested || pendingTransaction != null || saveRequested || failure != null) return;
+        if (!exitSaving) {
+            exitSaving = true;
+            game.saveGame();
+            if (pendingTransaction != null || saveRequested || failure != null) return;
+        }
+        if (exitFlush == null) exitFlush = disk.submit(() -> {});
+        if (exitFlush.isDone() && failure == null) Gdx.app.exit();
+    }
     private final java.util.concurrent.ExecutorService disk = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "coop-save"); t.setDaemon(true); return t;
     });
@@ -281,7 +294,7 @@ public final class LanCoop implements AutoCloseable {
             try { installSnapshot(); }
             catch (Exception error) { failure = "World snapshot failed: " + error.getMessage(); error.printStackTrace(); session.close(); }
         }
-        if (initialized && session != null) finishTransaction();
+        if (initialized && session != null) { finishTransaction(); finishExit(); }
         if (initialized && session != null && !session.isConnected()) {
             failure = "Disconnected: " + session.failure();
             game.playerCanMove = false;

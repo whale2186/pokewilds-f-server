@@ -82,6 +82,7 @@ public class Tile {
    public HashMap<String, Integer> items() {
       if (this.items == null) {
          this.items = new HashMap<>();
+         if (this.nameUpper.equals("item_pack")) return this.items;
          if (this.name.equals("grass2")) {
             this.items.put("grass", 1);
             if (Game.rand.nextInt(256) < 64) {
@@ -1408,6 +1409,8 @@ public class Tile {
 
             this.overSprite = TextureCache.getTileSprite(name, offsetX, 0, 16, 32);
             this.isCuttable = true;
+         } else if (this.nameUpper.equals("item_pack")) {
+            this.overSprite = new SmolSprite(TextureCache.get(Gdx.files.internal("menu/bag-sheet1.png")), 8, 26, 24, 24);
          } else if (this.nameUpper.contains("pkmnmansion")) {
             this.overSprite = TextureCache.getTileSprite("buildings/" + this.nameUpper, 0, 0, 16, 16);
          } else {
@@ -1528,7 +1531,10 @@ public class Tile {
             this.isCuttable = true;
          }
 
-         if (this.nameUpper.equals("pokeball1")) {
+         if (this.nameUpper.equals("item_pack")) {
+            this.isSolid = true;
+            this.isCuttable = false;
+         } else if (this.nameUpper.equals("pokeball1")) {
             this.isSolid = true;
             this.hasItem = "poké ball";
             this.hasItemAmount = 1;
@@ -1775,7 +1781,10 @@ public class Tile {
    }
 
    public void onPressA(Game game) {
-      if (this.hasItem != null && !this.isSign()) {
+      if (this.hasItem != null && this.nameUpper.equals("item_pack")) {
+         game.playerCanMove = false;
+         game.insertAction(new ItemPackMenu(this.position));
+      } else if (this.hasItem != null && !this.isSign()) {
          if (game.type == Game.Type.CLIENT) {
             game.client.sendTCP(new Network.PickupItem(game.player.network.id, game.player.dirFacing));
          } else {
@@ -1889,10 +1898,9 @@ public class Tile {
             }
          }
 
-         if (game.map.pokemon.containsKey(this.position)
-            && game.map.pokemon.get(this.position).mapTiles == game.map.tiles
-            && !game.map.pokemon.get(this.position).aggroPlayer) {
-            Pokemon pokemon = game.map.pokemon.get(this.position);
+         Pokemon occupant = game.map.pokemonAt(this.position);
+         if (occupant != null && !occupant.aggroPlayer) {
+            Pokemon pokemon = occupant;
             if (game.type == Game.Type.CLIENT) {
                game.client.sendTCP(new Network.PausePokemon(game.player.network.id, pokemon.position, true));
                return;
@@ -3169,7 +3177,7 @@ public class Tile {
 
             Pokemon finalSurfMon = surfMon;
             Vector2 pos = game.player.facingPos();
-            Pokemon facingPokemon = game.map.pokemon.get(pos);
+            Pokemon facingPokemon = game.map.pokemonAt(pos);
             boolean pokemonInTheWay = facingPokemon != null && facingPokemon.mapTiles == game.map.tiles;
             if (surfMon != null && !game.player.currFieldMove.equals("SURF") && !pokemonInTheWay) {
                Action yesAction = new DisplayText.Clear(

@@ -203,8 +203,14 @@ A Poké Ball beside a remote player's name means they are in a battle. It is vis
 
 Face a battling player and interact, then choose **Spectate**. **F5** watches the nearest active battle within the nearby interaction area, on the same map/layer. **Esc** or the configured cancel key (X by default) leaves. Chat and normal gameplay input are suppressed while watching.
 
-The spectator display receives only the active combatants, HP/status, turn and battle text. It uses independent display sprites; it does not enter the viewer's battle model, change their party/bag, or send battle actions. It supports wild, trainer-only encounters and player battle presentation. Watching ends when the battle ends, its identity changes, the player disconnects/leaves the area, or the viewer enters their own battle. Source clients must be updated to publish battle status. No world-save format change is required.
+The spectator display receives only the active combatants, HP/status, turn and battle text. It uses the normal battle frame, text and HP bars with independent display sprites; it does not enter the viewer's battle model, change their party/bag, or send battle actions. It supports wild, trainer-only encounters and player battle presentation. Watching ends when the battle ends, its identity changes, the player disconnects/leaves the area, or the viewer enters their own battle. Source clients must be updated to publish battle status. No world-save format change is required.
 
 The display is a live battle summary with Pokémon sprites and narration; it does not replay every original attack effect/animation. Transported state is bounded by the existing 2048-character visual budget and is not persisted as a world resource.
 
 Optional graphical check: `python3 scripts/test_spectator.py` uses an isolated copy of `runtime/asd.sav` (or `PW_E2E_WORLD`). It runs a headless authority and two graphical clients, checking status icons, the Spectate option, HP/turn updates, local input isolation, leaving/rejoining, battle completion, PvP presentation using interaction copies, and source disconnect.
+
+## Item packs
+
+Choose an item in the bag, select **DROP**, and choose an amount. Face clear ground to place a pack. Face the pack and interact, then select **Claim** to take its contents or **Exit** to leave it. Packs remain in the saved world until claimed. Simultaneous claims give the items to one player.
+
+The start menu hides **Save** in multiplayer. **Exit** saves your progress before closing. Use updated clients for the pack sprite and menus.

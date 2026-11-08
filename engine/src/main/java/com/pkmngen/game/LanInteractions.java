@@ -255,16 +255,24 @@ final class LanInteractions {
         Dialog(String[] choices, Select select) { this.choices = choices; this.select = select; }
         @Override public String getCamera() { return "gui"; }
         @Override public Layer getLayer() { return Layer.gui_140; }
+        private final GameMenuPanel panel = new GameMenuPanel();
         @Override public void step(Game current) {
-            com.badlogic.gdx.graphics.Texture box = com.pkmngen.game.util.TextureCache.get(com.badlogic.gdx.Gdx.files.internal("textbox_bg1.png"));
-            game.uiBatch.draw(box, 0, 0, 160, 144, 0, 96, 160, 48, false, false);
-            game.font.draw(game.uiBatch, status, 8, 130);
-            for (int i = 0; i < choices.length; i++) game.font.draw(game.uiBatch, (cursor == i ? "> " : "  ") + choices[i], 8, 110 - i*12);
+            boolean locked = confirmed && "trade".equals(kind);
+            String[] labels=choices.clone();
+            for(int i=0;i<labels.length;i++) {
+                if ("Cancel".equals(labels[i]) || "Close".equals(labels[i]) || "Decline".equals(labels[i])) labels[i]="Exit";
+                else if ("Forfeit".equals(labels[i])) labels[i]="Exit battle";
+            }
+            Pose player=coop.session().peers().get(peer);
+            String title=player==null?"Player interaction":player.name;
+            panel.draw(game,title,status,labels,cursor,locked);
             if (frames++ < 2) return;
             if (InputProcessor.upJustPressed) cursor = (cursor + choices.length - 1) % choices.length;
             if (InputProcessor.downJustPressed) cursor = (cursor + 1) % choices.length;
-            if (InputProcessor.bJustPressed && !confirmed) end(true);
-            else if (InputProcessor.aJustPressed) select.select(cursor);
+            int click=panel.clicked();
+            if ((InputProcessor.bJustPressed || com.badlogic.gdx.Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) && !locked) end(true);
+            else if(click>=0) { cursor=click; select.select(cursor); }
+            else if (InputProcessor.menuConfirmJustPressed()) select.select(cursor);
         }
     }
 }

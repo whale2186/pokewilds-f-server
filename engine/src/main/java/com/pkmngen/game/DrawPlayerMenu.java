@@ -3,6 +3,8 @@ package com.pkmngen.game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.NinePatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.pkmngen.game.util.TextureCache;
 import java.util.ArrayList;
@@ -15,6 +17,7 @@ class DrawPlayerMenu extends Menu {
    Sprite arrow;
    Sprite arrowWhite;
    Sprite textBox;
+   NinePatch menuFrame;
    public Action.Layer layer = Action.Layer.gui_108;
    Map<Integer, Vector2> arrowCoords;
    Vector2 newPos;
@@ -36,15 +39,14 @@ class DrawPlayerMenu extends Menu {
       this.arrowWhite = new Sprite(text, 0, 0, 5, 7);
       text = TextureCache.get(Gdx.files.internal("menu/menu6.png"));
       this.textBox = new Sprite(text, 0, 0, 160, 144);
-      this.arrowCoords.put(0, new Vector2(89.0F, 120.0F));
-      this.arrowCoords.put(1, new Vector2(89.0F, 104.0F));
-      this.arrowCoords.put(2, new Vector2(89.0F, 88.0F));
-      this.arrowCoords.put(3, new Vector2(89.0F, 72.0F));
-      this.arrowCoords.put(4, new Vector2(89.0F, 56.0F));
-      this.currIndex = lastIndex;
+      this.entries = entriesFor(game.coop != null || game.type != null);
+      this.menuFrame = new NinePatch(new TextureRegion(text, 80, 0, 80, 96), 8, 8, 8, 8);
+      for (int row = 0; row < this.entries.length; row++) {
+         this.arrowCoords.put(row, new Vector2(89.0F, 120.0F - row * 16));
+      }
+      this.currIndex = Math.max(0, Math.min(lastIndex, this.entries.length - 1));
       this.newPos = this.arrowCoords.get(this.currIndex);
       this.arrow.setPosition(this.newPos.x, this.newPos.y);
-      this.entries = new String[]{"POKéMON", "ITEM", "MAP", "GUIDE", "SAVE"};
 
       for (String entry : this.entries) {
          char[] textArray = entry.toCharArray();
@@ -73,6 +75,12 @@ class DrawPlayerMenu extends Menu {
       }
    }
 
+   static String[] entriesFor(boolean multiplayer) {
+      return multiplayer
+         ? new String[]{"POKéMON", "ITEM", "MAP", "GUIDE", "EXIT"}
+         : new String[]{"POKéMON", "ITEM", "MAP", "GUIDE", "SAVE", "EXIT"};
+   }
+
    @Override
    public String getCamera() {
       return "gui";
@@ -85,7 +93,8 @@ class DrawPlayerMenu extends Menu {
 
    @Override
    public void step(Game game) {
-      game.uiBatch.draw(this.textBox, this.textBox.getX(), this.textBox.getY());
+      float height = this.entries.length * 16 + 16;
+      this.menuFrame.draw(game.uiBatch, 80, 144 - height, 80, height);
       int j = 0;
 
       for (ArrayList<Sprite> word : this.spritesToDraw) {
@@ -107,7 +116,7 @@ class DrawPlayerMenu extends Menu {
                this.currIndex--;
                this.newPos = this.arrowCoords.get(this.currIndex);
             }
-         } else if (InputProcessor.downJustPressed && this.currIndex < 4) {
+         } else if (InputProcessor.downJustPressed && this.currIndex < this.entries.length - 1) {
             this.currIndex++;
             this.newPos = this.arrowCoords.get(this.currIndex);
          }
@@ -129,6 +138,8 @@ class DrawPlayerMenu extends Menu {
                game.insertAction(new DrawMiniMap.Intro(this, 9, new DrawMiniMap(game, this)));
             } else if (currEntry.equals("GUIDE")) {
                game.insertAction(new DrawItemMenu.Intro(this, 9, new DrawItemMenu(game, true, this)));
+            } else if (currEntry.equals("EXIT")) {
+               game.insertAction(new DrawExitMenu(game, this));
             } else if (currEntry.equals("SAVE")) {
                game.map.saveToFileNew(game);
                game.insertAction(

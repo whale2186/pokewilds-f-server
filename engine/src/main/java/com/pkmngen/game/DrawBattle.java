@@ -78,7 +78,7 @@ class DrawBattle extends Action {
          this.doneNightOverlay = true;
       }
 
-      this.bgSprite.draw(game.uiBatch);
+      BattleWindow.background(game, this.bgSprite);
       if (shouldDrawOppPokemon && !hideOppPokemon) {
          game.battle.oppPokemon.sprite.draw(game.uiBatch);
          this.oppPokemonOver.draw(game.uiBatch);

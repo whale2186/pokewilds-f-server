@@ -1167,7 +1167,7 @@ class DrawPokemonMenu extends Menu {
                      Vector2 pos = game.player.facingPos();
                      Tile currTile = game.map.tiles.get(pos);
                      Pokemon pokemon = game.player.pokemon.get(DrawPokemonMenu.currIndex);
-                     if (currTile == null || currTile.isSolid && !currTile.name.contains("water") || currTile.isLedge || game.map.pokemon.containsKey(pos)) {
+                     if (currTile == null || currTile.isSolid && !currTile.name.contains("water") || currTile.isLedge || game.map.pokemonAt(pos) != null) {
                         this.disabled = true;
                         return new DisplayText(
                            game, "Canì place here - something is in the way.", null, null, new SetField(this.prevMenu, "disabled", false, this.prevMenu)
@@ -1244,7 +1244,7 @@ class DrawPokemonMenu extends Menu {
 
                      pokemon.position = pos.cpy();
                      pokemon.mapTiles = game.map.tiles;
-                     game.map.pokemon.put(pos.cpy(), pokemon);
+                     game.map.indexPokemon(pos, pokemon);
                      if (game.player.hmPokemon == pokemon) {
                         if (!game.player.currFieldMove.equals("")) {
                            game.player.swapSprites(game.player.hmPokemon);
