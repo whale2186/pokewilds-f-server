@@ -1,0 +1,22 @@
+# Local build and runtime products
+/build/
+/runtime/
+/logs/
+/downloads/
+/vendor/
+/tools/
+/reference/
+/evidence/
+
+# Independent upstream reference checkouts
+/pokewilds/
+/rea/
+
+# Editor and language caches
+__pycache__/
+*.pyc
+.idea/
+*.iml
+
+# Separate repository publication staging
+/publish/
