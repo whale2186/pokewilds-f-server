@@ -2,6 +2,7 @@
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 JAVA="${JAVA_HOME:+$JAVA_HOME/bin/}java"
+if [[ -x "$ROOT/jre/bin/java" ]]; then JAVA="$ROOT/jre/bin/java"; fi
 ENGINE="$ROOT/lib/pokewilds-engine.jar"
 DEPS="$ROOT/lib/runtime-deps.jar"
 if [[ ! -f "$ENGINE" ]]; then ENGINE="$ROOT/build/pokewilds-engine.jar"; fi

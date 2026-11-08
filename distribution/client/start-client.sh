@@ -2,6 +2,7 @@
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 JAVA="${JAVA_HOME:+$JAVA_HOME/bin/}java"
+if [[ -x "$ROOT/jre/bin/java" ]]; then JAVA="$ROOT/jre/bin/java"; fi
 RUNTIME="${PW_RUNTIME:-$ROOT/runtime}"
 mkdir -p "$RUNTIME/tmp"
 if [[ ! -f "$RUNTIME/settings.txt" ]]; then cp "$ROOT/config/settings.txt" "$RUNTIME/settings.txt"; fi

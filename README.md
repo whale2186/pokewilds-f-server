@@ -8,9 +8,16 @@ A headless dedicated server for [PokeWilds-F](https://github.com/whale2186/pokew
 
 ## Run a server
 
-Install **64-bit Java 11**, download `pokewilds-f-server-v0.1.0.zip`, and extract the whole archive into a writable folder. The server needs no display, sound device, or local game client. Install Java separately; it is not bundled. Allow at least 2 GiB heap capacity plus room for the OS; first world generation can be expensive.
+Download and extract the **v0.1.1** package for your operating system. **Java 11 is bundled**, and the server needs no display, sound device, or local game client.
 
-Linux/macOS:
+| Platform | Download | Launch |
+|---|---|---|
+| Windows x64 | [Windows ZIP](https://github.com/whale2186/pokewilds-f-server/releases/download/v0.1.1/pokewilds-f-server-v0.1.1-windows-x64.zip) | `pokewilds-f-server.exe shared 54555` |
+| Linux x64 (glibc) | [Linux tar.gz](https://github.com/whale2186/pokewilds-f-server/releases/download/v0.1.1/pokewilds-f-server-v0.1.1-linux-x64.tar.gz) | `./start-server.sh shared 54555` |
+
+Keep `jre/`, `lib/`, and the launcher together. Windows launchers are unsigned. Allow at least 2 GiB heap capacity plus room for the OS; first world generation can be expensive.
+
+Linux:
 
 ```bash
 bash start-server.sh shared 54555
@@ -19,7 +26,7 @@ bash start-server.sh shared 54555
 Windows:
 
 ```bat
-start-server.bat shared 54555
+pokewilds-f-server.exe shared 54555
 ```
 
 The launchers default to world `shared` and TCP port `54555`, and allow a Java heap up to 2 GiB. The server binds to all local interfaces. Players use the matching PokeWilds-F release, choose JOIN → Servers (A), and enter this machine's LAN IP and port. The original unmodified PokeWilds release cannot join this protocol.
@@ -45,7 +52,7 @@ Shared terrain/world Pokémon, atomic client edits, battle reservations, origina
 
 This is an experimental trusted-LAN server. It does not authenticate human accounts or validate every game rule. Do not expose it as a hardened public Internet service. One island per session, incomplete progression/field-move coverage, and no crash-proof distributed transaction guarantee. Dedicated edits are resumed from the dedicated snapshot; they are not automatically converted back into solo saves. See [the guide](docs/MULTIPLAYER.md) for detailed limitations.
 
-Linux headless startup, socket tests, simulation and save/restart have been tested. Windows/macOS launchers have not been manually verified. No Android build is supplied.
+Linux headless startup, socket tests, simulation and save/restart have been tested. Windows smoke checks under Wine do not establish native-Windows compatibility. No Android or macOS package is supplied in v0.1.1.
 
 ## Build from source
 
@@ -57,10 +64,11 @@ Install JDK 11 and Python 3. Obtain `lib/runtime-deps.jar` from this release and
 bash scripts/dev.sh build
 bash scripts/server.sh shared 54555
 python3 -m unittest discover -s tests -v
-python3 scripts/package-release.py --version v0.1.0 --kind server
+python3 scripts/fetch-java-runtimes.py
+python3 scripts/package-release.py --version v0.1.1 --kind server --platform all
 ```
 
-The dependency/asset JAR is kept out of Git history. Release packages include compiled engine/runtime JARs and launchers; they exclude your local worlds, profiles, logs, credentials and a JRE.
+The dependency/asset JAR is kept out of Git history. Release packages include compiled engine/runtime JARs and launchers; platform packages also bundle Eclipse Temurin Java 11 with its notices. Local worlds, profiles, logs and credentials are excluded.
 
 ## Credits and provenance
 

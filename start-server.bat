@@ -3,6 +3,7 @@ setlocal
 set "ROOT=%~dp0"
 set "JAVA=java"
 if defined JAVA_HOME set "JAVA=%JAVA_HOME%\bin\java.exe"
+if exist "%ROOT%jre\bin\java.exe" set "JAVA=%ROOT%jre\bin\java.exe"
 set "WORLD=%~1"
 if not defined WORLD set "WORLD=shared"
 set "PORT=%~2"

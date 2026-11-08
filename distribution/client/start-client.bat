@@ -3,6 +3,7 @@ setlocal
 set "ROOT=%~dp0"
 set "JAVA=java"
 if defined JAVA_HOME set "JAVA=%JAVA_HOME%\bin\java.exe"
+if exist "%ROOT%jre\bin\java.exe" set "JAVA=%ROOT%jre\bin\java.exe"
 if not defined PW_RUNTIME set "PW_RUNTIME=%ROOT%runtime"
 if not exist "%PW_RUNTIME%\tmp" mkdir "%PW_RUNTIME%\tmp"
 if not exist "%PW_RUNTIME%\settings.txt" copy "%ROOT%config\settings.txt" "%PW_RUNTIME%\settings.txt" >nul
