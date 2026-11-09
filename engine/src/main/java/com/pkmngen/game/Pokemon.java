@@ -1276,6 +1276,7 @@ public class Pokemon extends OverworldThing {
             }
 
             Pokemon.this.previousOwner = game.player;
+            Pokemon.this.aggroPlayer = false;
             Pokemon.this.isRunning = false;
             if (Pokemon.this.loveInterest != null) {
                Pokemon.this.loveInterest.loveInterest = null;
@@ -2472,6 +2473,7 @@ public class Pokemon extends OverworldThing {
          Pokemon.this.mapTiles = game.map.tiles;
          Pokemon.this.interiorIndex = game.map.tiles == game.map.overworldTiles ? 100 : game.map.interiorTilesIndex;
          Pokemon.this.drawThisFrame = true;
+         if (Pokemon.this.previousOwner != null || Pokemon.this.lanOwnerId != null) Pokemon.this.aggroPlayer = false;
          Pokemon.this.isRunning = false;
          game.insertAction(Pokemon.this.new Standing());
       }
@@ -3826,7 +3828,7 @@ public class Pokemon extends OverworldThing {
 
       @Override
       public void step(Game game) {
-         if (game.coop != null && (game.coop.isGuest() || game.coop.reserved(Pokemon.this)) && game.coop.isWorldCreature(Pokemon.this)) {
+         if (game.coop != null && (game.coop.isGuest() || game.coop.reserved(Pokemon.this) || game.coop.managesAggression(Pokemon.this)) && game.coop.isWorldCreature(Pokemon.this)) {
             Pokemon.this.currOwSprite = Pokemon.this.standingSprites.get(Pokemon.this.dirFacing);
             return;
          }

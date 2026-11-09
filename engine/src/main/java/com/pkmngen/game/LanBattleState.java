@@ -11,12 +11,12 @@ final class LanBattleState {
         String species, name, status;
         Pokemon.Generation generation;
         int level, hp, maxHp;
-        boolean shiny;
+        boolean shiny, ghost;
         static Fighter of(Pokemon pokemon) {
             if (pokemon == null || pokemon.specie == null) return null;
             Fighter out=new Fighter(); out.species=pokemon.specie.name;
             out.name=shortText(pokemon.nickname,24); out.status=shortText(pokemon.status,16);
-            out.generation=pokemon.generation; out.level=pokemon.level; out.shiny=pokemon.isShiny;
+            out.generation=pokemon.generation; out.level=pokemon.level; out.shiny=pokemon.isShiny; out.ghost=pokemon.isGhost;
             out.maxHp=pokemon.maxStats.getOrDefault("hp",1);
             out.hp=Math.max(0,Math.min(out.maxHp,pokemon.currentStats.getOrDefault("hp",0)));
             return out;

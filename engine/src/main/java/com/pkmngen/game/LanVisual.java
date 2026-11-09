@@ -8,6 +8,8 @@ import com.pkmngen.game.util.Json;
 final class LanVisual {
     int texture, x, y, width, height;
     LanBattleState battle;
+    boolean busy, flying;
+    int calmingLevel;
     float offsetX, offsetY;
     boolean flipX, flipY;
     String species, direction, avatarSpecies;
@@ -24,6 +26,9 @@ final class LanVisual {
     static String capture(Game game) {
         LanVisual value = new LanVisual();
         Player player = game.player;
+        value.busy = !game.playerCanMove || game.coop != null && (game.coop.hud.blocksInput() || game.coop.spectator.blocksInput());
+        value.flying = "FLY".equals(player.currFieldMove);
+        value.calmingLevel = "CHARM".equals(player.currFieldMove) && player.hmPokemon != null ? player.hmPokemon.level : 0;
         if (game.coop!=null) value.battle=game.coop.spectator.capture();
         for (Action action : game.actionStack) if (action instanceof Player.Emote) value.emote = ((Player.Emote)action).type;
         Sprite sprite = player.isSleeping ? player.sleepingSprite : player.currSprite;

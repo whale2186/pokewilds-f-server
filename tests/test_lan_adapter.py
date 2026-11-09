@@ -15,7 +15,7 @@ class LanAdapterTest(unittest.TestCase):
         self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
         classpath = str(ROOT / "build/pokewilds-engine.jar") + os.pathsep + str(ROOT / "vendor/runtime-deps.jar")
         with tempfile.TemporaryDirectory(prefix="lan-adapter-", dir=ROOT / "build") as output:
-            names = ("MenuInputTest", "TitleMenuTest", "LanOptionsTest", "LanMetadataTest", "LanIdentityTest", "LanInventoryCheckpointTest", "LanTileCacheTest", "LanSmoothingAndRebaseTest", "LanBattleStateTest", "PlayerProfileTest")
+            names = ("MenuInputTest", "TitleMenuTest", "LanOptionsTest", "LanMetadataTest", "LanIdentityTest", "LanInventoryCheckpointTest", "LanTileCacheTest", "LanSmoothingAndRebaseTest", "LanBattleStateTest", "PlayerProfileTest", "DedicatedAggressionTest")
             result = subprocess.run([str(jdk / "bin/javac"), "--release", "8", "-cp", classpath, "-d", output, *(str(ROOT / "tests/java" / (name + ".java")) for name in names)], capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             for name in names:

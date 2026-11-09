@@ -174,7 +174,7 @@ public final class DedicatedServer {
                     session.close();
                 }, "dedicated-shutdown");
                 Runtime.getRuntime().addShutdownHook(shutdown);
-                long lastSave = System.nanoTime();
+                long lastSave = System.nanoTime(), lastClock = lastSave;
                 long tiles = state.resources.keySet().stream().filter(key -> key.startsWith("tile:")).count();
                 long creatures = state.resources.keySet().stream().filter(key -> key.startsWith("pokemon:")).count();
                 System.out.println("DEDICATED_READY world=" + name + " port=" + session.port() + " tiles=" + tiles + " creatures=" + creatures);
@@ -190,7 +190,7 @@ public final class DedicatedServer {
                 DedicatedSimulation simulation = new DedicatedSimulation(state.world, new Random());
                 try {
                     while (session.isConnected()) {
-                        Thread.sleep(1000);
+                        Thread.sleep(250);
                         String command;
                         boolean stopping = false;
                         while ((command = commands.poll()) != null) {
@@ -199,7 +199,8 @@ public final class DedicatedServer {
                         }
                         if (stopping) break;
                         LanSession.Value clockValue = session.resource("clock");
-                        if (clockValue != null) {
+                        if (clockValue != null && System.nanoTime() - lastClock >= 1_000_000_000L) {
+                            lastClock = System.nanoTime();
                             LanCoop.ClockInfo clock = Json.gson.fromJson(clockValue.json, LanCoop.ClockInfo.class);
                             clock.dayTimer -= 60;
                             if (clock.dayTimer <= 0) {
@@ -210,7 +211,7 @@ public final class DedicatedServer {
                                     Collections.singletonMap("clock", Json.gson.toJson(clock)));
                             session.drainTransactions();
                         }
-                        simulation.tick(session);
+                        simulation.tick(session,15,false);
                         if (System.nanoTime() - lastSave >= 30_000_000_000L) {
                             save(directory, state, session); lastSave = System.nanoTime();
                         }

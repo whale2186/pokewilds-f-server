@@ -88,8 +88,10 @@ final class LanSpectator {
     }
     private Pokemon view(Pokemon previous,LanBattleState.Fighter fighter) {
         if(previous!=null && previous.specie.name.equals(fighter.species) && previous.generation==fighter.generation
-                && previous.isShiny==fighter.shiny) return previous;
-        return new Pokemon(fighter.species,Math.min(100,fighter.level),fighter.generation,fighter.shiny);
+                && previous.isShiny==fighter.shiny && previous.isGhost==fighter.ghost) return previous;
+        Pokemon view = new Pokemon(fighter.species,Math.min(100,fighter.level),fighter.generation,fighter.shiny);
+        if (fighter.ghost) view.spookify();
+        return view;
     }
     private void rect(float x,float y,float w,float h,Color color) {
         if(pixel==null) { Pixmap map=new Pixmap(1,1,Pixmap.Format.RGBA8888); map.setColor(Color.WHITE); map.fill(); pixel=new Texture(map); map.dispose(); }

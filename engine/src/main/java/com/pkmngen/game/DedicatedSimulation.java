@@ -4,20 +4,25 @@ import com.pkmngen.game.multiplayer.LanSession;
 import com.pkmngen.game.util.Json;
 import java.util.*;
 
-/** One-second authoritative steps using revision-checked writes, shared with client interactions. */
+/** Authoritative pursuit and roaming use revision-checked writes shared with client interactions. */
 final class DedicatedSimulation {
     private final LanCoop.WorldInfo world;
     private final Random random;
     DedicatedSimulation(LanCoop.WorldInfo world, Random random) { this.world = world; this.random = random; }
 
-    void tick(LanSession session) {
+    private int wanderFrames;
+    void tick(LanSession session) { tick(session,60,false); }
+    void tick(LanSession session,int frames,boolean aggressionOnly) {
+        wanderFrames += frames;
+        boolean wander = wanderFrames >= 60;
+        if (wander) wanderFrames %= 60;
         Map<String, LanSession.Value> values = session.resources();
         Collection<LanSession.Pose> peers = session.peers().values();
         Set<String> occupied = new HashSet<>();
         Updates updates = new Updates(session);
         for (Map.Entry<String, LanSession.Value> entry : values.entrySet()) if (entry.getKey().startsWith("pokemon:") && entry.getValue().json != null) {
             LanCoop.CreatureInfo info = Json.gson.fromJson(entry.getValue().json, LanCoop.CreatureInfo.class);
-            occupied.add(tileKey(0, info.data.position.x, info.data.position.y));
+            occupied.add(tileKey(info.layer, info.data.position.x, info.data.position.y));
         }
         for (Map.Entry<String, LanSession.Value> entry : values.entrySet()) {
             if (!entry.getKey().startsWith("pokemon:") || entry.getValue().json == null) continue;
@@ -28,7 +33,7 @@ final class DedicatedSimulation {
                 updates.add(entry.getKey(), entry.getValue().revision, Json.gson.toJson(info));
                 continue;
             }
-            // Clients own interactions and battles. Keep nearby creatures stable for their duration.
+            // Idle roaming pauses near players; hostile pursuit below continues until an encounter is reserved.
             boolean nearby = false;
             for (LanSession.Pose peer : peers) if (!peer.id.equals(session.id()) && world.mapId.equals(peer.mapId)
                     && peer.layer == info.layer && Math.abs(peer.x - info.data.position.x) <= 80 && Math.abs(peer.y - info.data.position.y) <= 80) nearby = true;
@@ -39,24 +44,24 @@ final class DedicatedSimulation {
             String oldKey = tileKey(info.layer, info.data.position.x, info.data.position.y);
             Network.TileData ground = tile(values, oldKey);
             if (ground == null) continue;
-            if (info.harvestable == null) {
-                info.data.harvestTimer += habitatRate(values, info, species);
+            if (!aggressionOnly && info.harvestable == null) {
+                info.data.harvestTimer += habitatRate(values, info, species) * frames / 60;
                 if (info.data.harvestTimer >= species.harvestTimerMax) {
                     info.harvestable = species.harvest.get(random.nextInt(species.harvest.size()));
                     info.data.harvestTimer = 0;
                 }
             }
-            // Owned creatures stay where their owners placed them.
-            if (!nearby && info.data.lanOwnerId == null && info.data.previousOwnerName == null && random.nextInt(3) == 0) {
-                int direction = random.nextInt(4);
-                int[] dx = {0, 0, -16, 16}, dy = {16, -16, 0, 0};
-                String[] facing = {"up", "down", "left", "right"};
-                float x = info.data.position.x + dx[direction], y = info.data.position.y + dy[direction];
-                String nextKey = tileKey(info.layer, x, y);
-                Network.TileData next = tile(values, nextKey);
-                if (walkable(next, species) && !occupied.contains(tileKey(0, x, y))) {
-                    occupied.remove(tileKey(0, info.data.position.x, info.data.position.y)); occupied.add(tileKey(0, x, y));
-                    info.data.position.set(x, y); info.direction = facing[direction];
+            boolean owned = info.data.lanOwnerId != null || info.data.previousOwnerName != null;
+            if (!owned && "drapion".equals(info.data.name)) info.data.aggroPlayer = true;
+            if (!owned && info.data.aggroPlayer) {
+                LanSession.Pose target = target(session,peers,info);
+                info.pursuitTarget = target == null ? null : target.id;
+                if (target != null) chase(values,occupied,info,species,target);
+            } else {
+                info.provokedBy = info.pursuitTarget = null;
+                if (!aggressionOnly && !nearby && !owned && wander && random.nextInt(3) == 0) {
+                    int direction = random.nextInt(4);
+                    step(values,occupied,info,species,direction);
                 }
             }
             String json = Json.gson.toJson(info);
@@ -64,6 +69,56 @@ final class DedicatedSimulation {
         }
         updates.flush();
     }
+    private LanSession.Pose target(LanSession session,Collection<LanSession.Pose> peers,LanCoop.CreatureInfo info) {
+        if (info.provokedBy != null) {
+            for (LanSession.Pose peer:peers) if (peer.id.equals(info.provokedBy) && inRange(session,peer,info))
+                return available(peer,info) ? peer : null;
+            info.provokedBy = null;
+        }
+        LanSession.Pose best=null; float distance=Float.MAX_VALUE;
+        for (LanSession.Pose peer:peers) if (inRange(session,peer,info) && available(peer,info)) {
+            float dx=peer.x-info.data.position.x,dy=peer.y-info.data.position.y,d=dx*dx+dy*dy;
+            if(d<distance || d==distance && best!=null && peer.id.compareTo(best.id)<0) { best=peer;distance=d; }
+        }
+        return best;
+    }
+    private boolean inRange(LanSession session,LanSession.Pose peer,LanCoop.CreatureInfo info) {
+        float dx=peer.x-info.data.position.x,dy=peer.y-info.data.position.y;
+        return (!world.dedicated || !peer.id.equals(session.id())) && world.mapId.equals(peer.mapId)
+                && peer.layer==info.layer && dx*dx+dy*dy<14400;
+    }
+    private static boolean available(LanSession.Pose peer,LanCoop.CreatureInfo info) {
+        try {
+            if(peer.visual==null || peer.visual.isEmpty()) return true;
+            com.google.gson.JsonObject visual=Json.gson.fromJson(peer.visual,com.google.gson.JsonObject.class);
+            return visual!=null && !flag(visual,"busy") && !flag(visual,"flying")
+                && (!visual.has("calmingLevel") || visual.get("calmingLevel").getAsInt()<info.data.level);
+        } catch(RuntimeException invalid) { return false; }
+    }
+    private static boolean flag(com.google.gson.JsonObject visual,String name) {
+        return visual.has(name) && visual.get(name).getAsBoolean();
+    }
+    private void chase(Map<String,LanSession.Value> values,Set<String> occupied,LanCoop.CreatureInfo info,DedicatedSpecies species,LanSession.Pose target) {
+        float dx=target.x-info.data.position.x,dy=target.y-info.data.position.y;
+        if(dx*dx+dy*dy<64) return;
+        int horizontal=dx<0?2:3,vertical=dy<0?1:0;
+        if(Math.abs(dx)>=Math.abs(dy)) {
+            if(Math.abs(dx)>=8 && step(values,occupied,info,species,horizontal)) return;
+            if(Math.abs(dy)>=8) step(values,occupied,info,species,vertical);
+        } else {
+            if(Math.abs(dy)>=8 && step(values,occupied,info,species,vertical)) return;
+            if(Math.abs(dx)>=8) step(values,occupied,info,species,horizontal);
+        }
+    }
+    private static boolean step(Map<String,LanSession.Value> values,Set<String> occupied,LanCoop.CreatureInfo info,DedicatedSpecies species,int direction) {
+        int[] dx={0,0,-16,16},dy={16,-16,0,0};String[] facing={"up","down","left","right"};
+        float x=info.data.position.x+dx[direction],y=info.data.position.y+dy[direction];
+        String key=tileKey(info.layer,x,y);
+        if(!walkable(tile(values,key),species) || occupied.contains(key)) return false;
+        occupied.remove(tileKey(info.layer,info.data.position.x,info.data.position.y));occupied.add(key);
+        info.data.position.set(x,y);info.direction=facing[direction];return true;
+    }
+
     /** Bound both batch size and encoded payload, avoiding a packet per creature each tick. */
     private static final class Updates {
         final LanSession session;

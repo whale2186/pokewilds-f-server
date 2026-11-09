@@ -2128,7 +2128,10 @@ public class Tile {
                                     game,
                                     10,
                                     new SetField(
-                                       game, "playerCanMove", true, new SetField(pokemon, "canMove", true, new SetField(pokemon, "aggroPlayer", true, null))
+                                       game, "playerCanMove", true, new SetField(pokemon, "canMove", true, new RunCode(() -> {
+                                          pokemon.aggroPlayer = true;
+                                          if (game.coop != null) game.coop.provoke(pokemon);
+                                       }, null))
                                     )
                                  )
                               )

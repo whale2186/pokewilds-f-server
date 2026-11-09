@@ -2,6 +2,8 @@
 
 ## v0.1.3 — Item packs and menus
 
+Fix aggressive Pokémon standing still after being provoked, including wild Drapion. Restore nighttime ghost encounters for multiplayer guests.
+
 Remember player appearance between sessions. Fix washed-out night lighting, headless trade saves and ownership of traded Pokémon. Player battles use the normal battle window and move menu.
 
 Drop items from the bag as packs that players can claim. Packs stay in the saved world until picked up.

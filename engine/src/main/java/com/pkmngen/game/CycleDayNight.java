@@ -22,6 +22,7 @@ class CycleDayNight extends Action {
    public static AnimationContainer<Color> fadeToDayAnim;
    Random rand;
    int countDownToGhost;
+   private int lightCheckTimer;
    Sprite bgSprite;
    String text;
    int signCounter;
@@ -72,8 +73,24 @@ class CycleDayNight extends Action {
       return this.layer;
    }
 
+   // Ghost encounters belong to each player; only the shared clock needs an authority.
+   private void updateGhosts(Game game) {
+      if (game.map.tiles != game.map.overworldTiles || !"night".equals(game.map.timeOfDay) || !game.playerCanMove
+            || game.coop != null && (game.coop.hud.blocksInput() || game.coop.spectator.blocksInput() || game.coop.interactionBusy())) return;
+      if (this.lightCheckTimer-- <= 0) { game.player.isNearCampfire = game.player.checkNearCampfire(); this.lightCheckTimer = 30; }
+      if (game.player.isNearCampfire) return;
+      Tile ground = game.map.tiles.get(new Vector2((float)Math.floor(game.player.position.x/16)*16,(float)Math.floor(game.player.position.y/16)*16));
+      String biome = ground != null && ground.biome != null ? ground.biome : game.map.currBiome;
+      if (!"deep_forest".equals(biome) && !"graveyard".equals(biome) && !"wooded_lake".equals(biome)) return;
+      if (--this.countDownToGhost <= 0) {
+         Vector2 position = game.player.position.cpy().add(this.rand.nextInt(5)*16-48,this.rand.nextInt(5)*16-48);
+         game.insertAction(new SpawnGhost(game,position)); this.countDownToGhost = this.rand.nextInt(2000)+1000;
+      }
+   }
+
    @Override
    public void step(Game game) {
+      updateGhosts(game);
       if (game.coop != null && game.coop.isGuest()) return;
       dayTimer--;
       if (dayTimer <= 0) {
@@ -700,16 +717,6 @@ class CycleDayNight extends Action {
       }
 
       if (game.map.tiles == game.map.overworldTiles && game.map.timeOfDay.equals("night") && game.playerCanMove && !game.player.isNearCampfire) {
-         if (game.map.currBiome.equals("deep_forest") || game.map.currBiome.equals("graveyard") || game.map.currBiome.equals("wooded_lake")) {
-            this.countDownToGhost--;
-            System.out.println(this.countDownToGhost);
-            if (this.countDownToGhost <= 0) {
-               Vector2 randPos = game.player.position.cpy().add(this.rand.nextInt(5) * 16 - 48, this.rand.nextInt(5) * 16 - 48);
-               game.insertAction(new SpawnGhost(game, new Vector2(randPos)));
-               this.countDownToGhost = this.rand.nextInt(2000) + 1000;
-            }
-         }
-
          if (game.player.nearCacturne) {
             this.countDownToCacturne--;
             System.out.println(this.countDownToCacturne);

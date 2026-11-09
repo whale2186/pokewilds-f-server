@@ -41,6 +41,9 @@ public final class LanCoop implements AutoCloseable {
     private final Map<String, Pokemon> creatures = new HashMap<>();
     private final IdentityHashMap<Pokemon, CreatureMotion> creatureMotion = new IdentityHashMap<>();
     private final Map<String, String> encounters = new HashMap<>();
+    private final Map<String, String> provokers = new HashMap<>(), pursuitTargets = new HashMap<>();
+    private DedicatedSimulation aggression;
+    private long lastAggression;
     private final Map<String, Value> observed = new HashMap<>();
     private final Map<String, String> baseline = new HashMap<>();
     private final Map<String, String> replicaBaseline = new HashMap<>();
@@ -136,6 +139,7 @@ public final class LanCoop implements AutoCloseable {
         String direction;
         String harvestable;
         String encounterOwner;
+        String provokedBy, pursuitTarget;
     }
     static final class ClockInfo {
         String timeOfDay;
@@ -307,6 +311,9 @@ public final class LanCoop implements AutoCloseable {
                 }
             }
         }
+        if (ready() && game.playerCanMove && pendingTransaction == null && privateCheckpoint != null
+                && !privateCheckpoint.changed(game.player.getItemsDict(),game.player.pokemon)) reconcile();
+        if (ready()) updateHostileContact();
         if (initialized && session != null && !session.isConnected()) {
             failure = "Disconnected: " + session.failure();
             game.playerCanMove = false;
@@ -340,6 +347,9 @@ public final class LanCoop implements AutoCloseable {
         }
         updateAvatars();
         interactions.update();
+        if (!isGuest() && aggression != null && now - lastAggression >= 250_000_000L) {
+            aggression.tick(session,15,true); lastAggression = now;
+        }
         // Field actions may update terrain before awarding their items in later frames.
         // Publish/reconcile only after the action releases movement, so both effects
         // belong to one revision-checked transaction and one inventory checkpoint.
@@ -405,6 +415,7 @@ public final class LanCoop implements AutoCloseable {
         installTradePersistence(session, java.nio.file.Paths.get(game.map.id + ".sav"));
         observed.putAll(session.resources()); baseline.putAll(initial);
         initialized = true; game.playerCanMove = true; checkpointPrivate();
+        aggression = new DedicatedSimulation(world,new java.util.Random());
         System.out.println("COOP_READY host port=" + session.port() + " tiles=" + game.map.overworldTiles.size());
     }
 
@@ -499,6 +510,7 @@ public final class LanCoop implements AutoCloseable {
             CreatureInfo info = new CreatureInfo(); info.data = new Network.PokemonData(pokemon); info.direction = pokemon.dirFacing;
             info.harvestable = pokemon.hasItem;
             info.encounterOwner = encounters.get(id);
+            info.provokedBy = provokers.get(id); info.pursuitTarget = pursuitTargets.get(id);
             info.layer = pokemon.mapTiles == game.map.overworldTiles || pokemon.mapTiles == null ? -1 : pokemon.interiorIndex;
             state.put(id, Json.gson.toJson(info));
         }
@@ -766,6 +778,7 @@ public final class LanCoop implements AutoCloseable {
             head.data.harvestTimer = original.data.harvestTimer;
             head.data.position = original.data.position;
             head.direction = original.direction;
+            head.pursuitTarget = original.pursuitTarget;
             return equal(Json.gson.toJson(original), Json.gson.toJson(head));
         } catch (RuntimeException invalid) { return false; }
     }
@@ -891,6 +904,7 @@ public final class LanCoop implements AutoCloseable {
                 CreatureInfo info = new CreatureInfo(); info.data = new Network.PokemonData(pokemon);
                 info.direction = pokemon.dirFacing; info.harvestable = pokemon.hasItem;
                 info.encounterOwner = encounters.get(key);
+                info.provokedBy = provokers.get(key); info.pursuitTarget = pursuitTargets.get(key);
                 info.layer = pokemon.mapTiles == game.map.overworldTiles || pokemon.mapTiles == null ? -1 : pokemon.interiorIndex;
                 replicaBaseline.put(key, Json.gson.toJson(info));
             }
@@ -929,13 +943,16 @@ public final class LanCoop implements AutoCloseable {
                 CreatureInfo oldInfo = Json.gson.fromJson(oldJson, CreatureInfo.class);
                 CreatureInfo newInfo = Json.gson.fromJson(json, CreatureInfo.class);
                 oldInfo.data.harvestTimer = newInfo.data.harvestTimer; oldInfo.harvestable = newInfo.harvestable;
-                if (isGuest()) {
+                boolean applyMotion = isGuest() || newInfo.data.aggroPlayer;
+                oldInfo.data.aggroPlayer = newInfo.data.aggroPlayer;
+                oldInfo.provokedBy = newInfo.provokedBy; oldInfo.pursuitTarget = newInfo.pursuitTarget;
+                if (applyMotion) {
                     oldInfo.data.position = newInfo.data.position;
                     oldInfo.direction = newInfo.direction;
                     oldInfo.encounterOwner = newInfo.encounterOwner;
                 }
                 if (equal(Json.gson.toJson(oldInfo), Json.gson.toJson(newInfo))) {
-                    if (isGuest()) {
+                    if (applyMotion) {
                         if (!existing.position.equals(newInfo.data.position)) {
                             CreatureMotion motion = creatureMotion.computeIfAbsent(existing,
                                     p -> new CreatureMotion(p.position.x, p.position.y));
@@ -950,11 +967,13 @@ public final class LanCoop implements AutoCloseable {
                         if (newInfo.encounterOwner == null) encounters.remove(key);
                         else encounters.put(key, newInfo.encounterOwner);
                     }
+                    existing.aggroPlayer = newInfo.data.aggroPlayer;
+                    putTarget(provokers,key,newInfo.provokedBy); putTarget(pursuitTargets,key,newInfo.pursuitTarget);
                     existing.harvestTimer = newInfo.data.harvestTimer; existing.hasItem = newInfo.harvestable;
                     return;
                 }
             }
-            encounters.remove(key);
+            encounters.remove(key); provokers.remove(key); pursuitTargets.remove(key);
             Pokemon previous = creatures.remove(key);
             if (previous != null) {
                 game.map.pokemon.values().removeIf(pokemon -> pokemon == previous);
@@ -965,6 +984,7 @@ public final class LanCoop implements AutoCloseable {
             if (json != null) {
                 CreatureInfo info = Json.gson.fromJson(json, CreatureInfo.class);
                 if (info.encounterOwner != null) encounters.put(key, info.encounterOwner);
+                putTarget(provokers,key,info.provokedBy); putTarget(pursuitTargets,key,info.pursuitTarget);
                 Pokemon pokemon = new Pokemon(info.data); pokemon.position = info.data.position.cpy();
                 pokemon.dirFacing = info.direction == null ? "down" : info.direction;
                 pokemon.hasItem = info.harvestable;
@@ -982,6 +1002,36 @@ public final class LanCoop implements AutoCloseable {
         }
     }
 
+    private static void putTarget(Map<String,String> map,String key,String target) { if(target==null) map.remove(key); else map.put(key,target); }
+    boolean managesAggression(Pokemon pokemon) {
+        return isWorldCreature(pokemon) && pokemon.previousOwner == null && pokemon.lanOwnerId == null
+                && (pokemon.aggroPlayer || "drapion".equals(pokemon.specie.name));
+    }
+    void provoke(Pokemon pokemon) {
+        String id=creatureIds.get(pokemon);
+        if(id==null || !ready()) return;
+        pokemon.aggroPlayer=true; provokers.put(id,session.id()); scanChanges();
+    }
+    private void updateHostileContact() {
+        if (!game.playerCanMove || hud.blocksInput() || spectator.blocksInput() || interactions.busy()
+                || pendingTransaction != null || "FLY".equals(game.player.currFieldMove)) return;
+        for (Map.Entry<String,Pokemon> entry:creatures.entrySet()) {
+            Pokemon pokemon=entry.getValue();
+            if (!pokemon.aggroPlayer || pokemon.isEgg || pokemon.currentStats.getOrDefault("hp",0)<=0
+                    || pokemon.previousOwner!=null || pokemon.lanOwnerId!=null || pokemon.mapTiles!=game.map.tiles
+                    || pokemon.position.dst2(game.player.position)>=64 || reserved(pokemon)
+                    || !session.id().equals(pursuitTargets.get(entry.getKey()))) continue;
+            if (game.player.isSleeping) {
+                game.player.isSleeping=false;
+                if (game.player.sleepingDir==null) { game.player.drawSleepingBag=false;game.player.acceptInput=true; }
+                else game.player.sleepingDir=null;
+            }
+            if (!game.player.acceptInput) return;
+            game.playerCanMove=false;game.player.setCurrPokemon();game.battle.oppPokemon=pokemon;
+            if (game.musicController!=null) game.musicController.startBattle="wild";
+            game.insertAction(Battle.getIntroAction(game));return;
+        }
+    }
     boolean ownsBattle(Pokemon pokemon) {
         return session != null && session.id().equals(encounters.get(creatureIds.get(pokemon)));
     }
@@ -1055,6 +1105,8 @@ public final class LanCoop implements AutoCloseable {
                 if (!localHost && old != null && old.encounterOwner != null && !old.encounterOwner.equals(actor.id)) return false;
                 CreatureInfo info = Json.gson.fromJson(proposed == null ? previous : proposed, CreatureInfo.class);
                 if (!localHost && proposed != null && info != null && info.encounterOwner != null && !info.encounterOwner.equals(actor.id)) return false;
+                if (!localHost && info != null && info.provokedBy != null && !info.provokedBy.equals(actor.id)
+                        && (old == null || !info.provokedBy.equals(old.provokedBy))) return false;
                 return info != null && info.data != null && info.layer >= -1 && info.layer <= 255 && info.data.position != null
                         && Float.isFinite(info.data.position.x) && Float.isFinite(info.data.position.y)
                         && (localHost || info.layer == actor.layer && Math.abs(actor.x - info.data.position.x) <= 64 && Math.abs(actor.y - info.data.position.y) <= 64)

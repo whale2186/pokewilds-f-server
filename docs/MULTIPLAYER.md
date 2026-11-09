@@ -1,6 +1,6 @@
 # Experimental LAN co-op
 
-The reconstructed v0.8.11 engine now has an opt-in LAN implementation. This is not the original release's legacy Kryo multiplayer, and an unmodified release cannot join it. Use matching builds on all machines. Changes are local and unpublished.
+The reconstructed v0.8.11 engine now has an opt-in LAN implementation. This is not the original release's legacy Kryo multiplayer, and an unmodified release cannot join it. Use matching builds on all machines. Use the same client and server release files.
 
 ## Dedicated server and server list
 
@@ -50,10 +50,16 @@ separate: dedicated edits are currently resumed by the dedicated runner, rather
 than imported back into solo play. Keep the snapshot and world identity together.
 A world lock prevents two dedicated runners from opening the same directory.
 
-Dedicated mode advances the shared clock and accepts the same revisioned client
-edits as graphical co-op. Autonomous creature movement, spawning, and tidal
-simulation still depend on graphical host actions and do not run on the dedicated
-server. Existing co-op limits below still apply. The dedicated authority occupies
+Dedicated mode advances the shared clock, harvest timers and wild Pokémon roaming.
+Aggressive wild Pokémon chase nearby players on the same floor. Provoked Pokémon
+prefer the player who provoked them. Fences block pursuit, and Fly, Charm and busy
+players are respected. Wild Drapion retain their original aggressive behavior.
+
+Nighttime ghosts use the original per-player encounters in deep forests, graveyards
+and wooded lakes, including the reveal, pursuit and wild battle. Nearby lights and
+Flash provide protection. These encounters run for multiplayer guests too. Tidal
+simulation still depends on graphical host actions. Existing co-op limits below
+still apply. The dedicated authority occupies
 one protocol slot but has no rendered avatar. Player bags and parties remain
 private client saves.
 
@@ -222,3 +228,6 @@ Player name, character, clothing color and skin color are saved in `player-profi
 Trades transfer ownership to the receiving player. Both players confirm before the server records the decision. Update the server as well as the clients for the headless trade-save fix.
 
 Graphical checks: `python3 scripts/test_interactions.py` covers trade, placement, pickup, player battles and reconnect; `python3 scripts/test_appearance.py` checks saved appearance across processes and rendered night/day contrast. Both use isolated copied worlds.
+
+`python3 scripts/test_hostility.py` checks native guest provocation, pursuit into a
+reserved wild battle, ghost reveals and battles, and day/torch/Flash protection.
