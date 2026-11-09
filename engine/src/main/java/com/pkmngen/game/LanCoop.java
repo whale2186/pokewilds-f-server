@@ -42,8 +42,7 @@ public final class LanCoop implements AutoCloseable {
     private final IdentityHashMap<Pokemon, CreatureMotion> creatureMotion = new IdentityHashMap<>();
     private final Map<String, String> encounters = new HashMap<>();
     private final Map<String, String> provokers = new HashMap<>(), pursuitTargets = new HashMap<>();
-    private DedicatedSimulation aggression;
-    private long lastAggression;
+    private java.util.concurrent.ScheduledExecutorService aggressionWorker;
     private final Map<String, Value> observed = new HashMap<>();
     private final Map<String, String> baseline = new HashMap<>();
     private final Map<String, String> replicaBaseline = new HashMap<>();
@@ -347,9 +346,6 @@ public final class LanCoop implements AutoCloseable {
         }
         updateAvatars();
         interactions.update();
-        if (!isGuest() && aggression != null && now - lastAggression >= 250_000_000L) {
-            aggression.tick(session,15,true); lastAggression = now;
-        }
         // Field actions may update terrain before awarding their items in later frames.
         // Publish/reconcile only after the action releases movement, so both effects
         // belong to one revision-checked transaction and one inventory checkpoint.
@@ -415,7 +411,17 @@ public final class LanCoop implements AutoCloseable {
         installTradePersistence(session, java.nio.file.Paths.get(game.map.id + ".sav"));
         observed.putAll(session.resources()); baseline.putAll(initial);
         initialized = true; game.playerCanMove = true; checkpointPrivate();
-        aggression = new DedicatedSimulation(world,new java.util.Random());
+        // Large island snapshots and species parsing must never block the render loop.
+        final DedicatedSimulation aggression = new DedicatedSimulation(world,new java.util.Random());
+        final LanSession authority = session;
+        aggressionWorker = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread thread = new Thread(r,"lan-pursuit"); thread.setDaemon(true); return thread;
+        });
+        aggressionWorker.scheduleWithFixedDelay(() -> {
+            if (!authority.isConnected()) return;
+            try { aggression.tick(authority,15,true); }
+            catch (RuntimeException error) { System.err.println("COOP_PURSUIT_ERROR " + error); }
+        },250,250,java.util.concurrent.TimeUnit.MILLISECONDS);
         System.out.println("COOP_READY host port=" + session.port() + " tiles=" + game.map.overworldTiles.size());
     }
 
@@ -1299,6 +1305,7 @@ public final class LanCoop implements AutoCloseable {
     @Override public void close() {
         interactions.dispose(); spectator.dispose(); hud.dispose();
         closed = true; saveGuest();
+        if (aggressionWorker != null) aggressionWorker.shutdownNow();
         if (session != null) session.close();
         if (worker != null) worker.interrupt();
         disk.shutdown();

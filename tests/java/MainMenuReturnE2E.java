@@ -57,6 +57,7 @@ public final class MainMenuReturnE2E extends Game {
                 if(mode.equals("guest")) {
                     ServerList list=new ServerList(); list.entries.add(new ServerList.Entry("Fixture",endpoint)); list.save();
                 }
+                if(mode.equals("host") && Thread.getAllStackTraces().keySet().stream().noneMatch(t->t.isAlive() && t.getName().equals("lan-pursuit"))) throw new AssertionError("Pursuit worker did not start");
                 exitMenu();
             } else if(phase==1) {
                 if((Integer)field(confirmation,"frames")<3) return;
@@ -73,7 +74,8 @@ public final class MainMenuReturnE2E extends Game {
                     Network.GameSaveData saved=Save.readData(savePath,Network.GameSaveData.class);
                     if(saved.playerData.itemsDict.get("log")!=73) throw new AssertionError("Exit lost inventory");
                 }
-                if(++titleFrames<10) return;
+                if(++titleFrames<20) return;
+                if(Thread.getAllStackTraces().keySet().stream().anyMatch(t->t.isAlive() && t.getName().equals("lan-pursuit"))) throw new AssertionError("Pursuit worker survived Exit");
                 com.badlogic.gdx.graphics.Pixmap picture=ScreenUtils.getFrameBufferPixmap(0,0,Gdx.graphics.getWidth(),Gdx.graphics.getHeight());
                 try { PixmapIO.writePNG(Gdx.files.local("main-menu.png"),picture,-1,true); } finally { picture.dispose(); }
                 returns++; titleFrames=0;
