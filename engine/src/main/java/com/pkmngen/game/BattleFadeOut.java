@@ -101,9 +101,27 @@ class BattleFadeOut extends Action {
          game.player.currPokemon.disabledIndex = -1;
          game.player.currPokemon.disabledCounter = 0;
          game.player.currPokemon.cantEscapeBy = null;
-         if (game.coop != null) game.coop.endWorldBattle(game.battle.oppPokemon);
-         game.battle.oppPokemon.canMove = true;
-         game.battle.oppPokemon.cantEscapeBy = null;
+         if (game.battle.oppPokemon != null) {
+            game.battle.oppPokemon.inBattle = false;
+            game.battle.oppPokemon.aggroPlayer = false;
+            if (game.battle.oppPokemon.standingAction instanceof Pokemon.Standing) {
+               Pokemon.Standing standing = (Pokemon.Standing)game.battle.oppPokemon.standingAction;
+               standing.aggroTimer = -300;
+               standing.justAggroed = true;
+            }
+            if (game.coop != null) game.coop.endWorldBattle(game.battle.oppPokemon);
+            game.battle.oppPokemon.canMove = true;
+            game.battle.oppPokemon.cantEscapeBy = null;
+         }
+         for (Action action : new ArrayList<>(game.actionStack)) {
+            if (action instanceof DrawGhost) {
+               DrawGhost ghost = (DrawGhost)action;
+               game.actionStack.remove(ghost);
+               game.insertAction(new DespawnGhost(ghost.basePos.cpy()));
+               game.musicController.nightAlert = false;
+               game.musicController.resumeOverworldMusic = true;
+            }
+         }
       }
    }
 

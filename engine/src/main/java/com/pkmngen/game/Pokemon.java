@@ -3196,7 +3196,10 @@ public class Pokemon extends OverworldThing {
                         this.lungeCounter--;
                      }
 
-                     if (dst2 < 64.0F && this.aggroTimer > 32 && !game.player.currFieldMove.equals("FLY")) {
+                     if (dst2 < 64.0F && this.aggroTimer > 32 && !game.player.currFieldMove.equals("FLY")
+                           && game.battle.drawAction == null
+                           && (game.battle.oppPokemon == null || !game.battle.oppPokemon.inBattle)
+                           && (game.coop == null || !game.coop.hasHostilityCooldown())) {
                         if (game.player.isSleeping) {
                            game.player.isSleeping = false;
                            if (game.player.sleepingDir == null) {

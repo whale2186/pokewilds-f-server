@@ -41,6 +41,8 @@ public final class DedicatedAggressionTest {
             long deadline=System.nanoTime()+3_000_000_000L;while(host.peers().containsKey(first.id())&&System.nanoTime()<deadline)Thread.sleep(10);
             tick(host,ai);if(read(host).provokedBy!=null)throw new AssertionError("Disconnected provoker retained");
             world.dedicated=false;pose(host,host,64,0,-1,"{}");tick(host,ai);check(host,16,host.id(),"graphical host was excluded from pursuit");
+            set(host,KEY,creature("tauros",false,null,null));tick(host,ai);check(host,0,null,"de-aggroed Tauros chased");
+            LanCoop.CreatureInfo fainted=read(host);fainted.data.hp=0;set(host,KEY,Json.gson.toJson(fainted));tick(host,ai);check(host,0,null,"fainted creature chased");
         }
         System.out.println("PASS provocation, Drapion, busy/FLY/CHARM, fences, layers, ownership, reservation and disconnect");
     }

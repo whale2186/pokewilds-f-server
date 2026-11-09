@@ -43,6 +43,8 @@ public final class LanCoop implements AutoCloseable {
     private final Map<String, String> encounters = new HashMap<>();
     private final Map<String, String> provokers = new HashMap<>(), pursuitTargets = new HashMap<>();
     private java.util.concurrent.ScheduledExecutorService aggressionWorker;
+    private int hostilityCooldown;
+    boolean hasHostilityCooldown() { return hostilityCooldown > 0; }
     private final Map<String, Value> observed = new HashMap<>();
     private final Map<String, String> baseline = new HashMap<>();
     private final Map<String, String> replicaBaseline = new HashMap<>();
@@ -310,6 +312,7 @@ public final class LanCoop implements AutoCloseable {
                 }
             }
         }
+        if (hostilityCooldown > 0) hostilityCooldown--;
         if (ready() && game.playerCanMove && pendingTransaction == null && privateCheckpoint != null
                 && !privateCheckpoint.changed(game.player.getItemsDict(),game.player.pokemon)) reconcile();
         if (ready()) updateHostileContact();
@@ -1020,7 +1023,9 @@ public final class LanCoop implements AutoCloseable {
     }
     private void updateHostileContact() {
         if (!game.playerCanMove || hud.blocksInput() || spectator.blocksInput() || interactions.busy()
-                || pendingTransaction != null || "FLY".equals(game.player.currFieldMove)) return;
+                || pendingTransaction != null || "FLY".equals(game.player.currFieldMove)
+                || hostilityCooldown > 0 || game.battle.drawAction != null
+                || (game.battle.oppPokemon != null && game.battle.oppPokemon.inBattle)) return;
         for (Map.Entry<String,Pokemon> entry:creatures.entrySet()) {
             Pokemon pokemon=entry.getValue();
             if (!pokemon.aggroPlayer || pokemon.isEgg || pokemon.currentStats.getOrDefault("hp",0)<=0
@@ -1043,7 +1048,38 @@ public final class LanCoop implements AutoCloseable {
     }
     boolean reserved(Pokemon pokemon) { return encounters.containsKey(creatureIds.get(pokemon)); }
     void endWorldBattle(Pokemon pokemon) {
-        if (ownsBattle(pokemon)) encounters.remove(creatureIds.get(pokemon));
+        if (pokemon == null) return;
+        String id = creatureIds.get(pokemon);
+        if (id == null || !ownsBattle(pokemon)) return;
+        hostilityCooldown = 300;
+        boolean fainted = pokemon.currentStats.getOrDefault("hp", 0) <= 0;
+        if (fainted) {
+            encounters.remove(id);
+            provokers.remove(id);
+            pursuitTargets.remove(id);
+            creatures.remove(id);
+            creatureIds.remove(pokemon);
+            if (game.map != null && game.map.pokemon != null) {
+                game.map.pokemon.values().removeIf(p -> p == pokemon);
+            }
+            if (pokemon.standingAction != null) {
+                game.actionStack.remove(pokemon.standingAction);
+                pokemon.standingAction = null;
+            }
+            pokemon.removeDrawActions(game);
+        } else {
+            pokemon.aggroPlayer = false;
+            pokemon.inBattle = false;
+            provokers.remove(id);
+            pursuitTargets.remove(id);
+            encounters.remove(id);
+            if (pokemon.standingAction instanceof Pokemon.Standing) {
+                Pokemon.Standing standing = (Pokemon.Standing) pokemon.standingAction;
+                standing.aggroTimer = -300;
+                standing.justAggroed = true;
+            }
+        }
+        scanChanges();
     }
     Action reserveBattle(final boolean fishing) {
         return new Action() {

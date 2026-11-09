@@ -75,6 +75,7 @@ class DrawBattleMenu1 extends Action {
             game.actionStack.remove(this);
             game.battle.drawAction.cleanup(game);
             game.battle.oppPokemon.inBattle = false;
+            game.battle.oppPokemon.aggroPlayer = false;
          }
       }
 

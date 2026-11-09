@@ -27,6 +27,7 @@ final class DedicatedSimulation {
         for (Map.Entry<String, LanSession.Value> entry : values.entrySet()) {
             if (!entry.getKey().startsWith("pokemon:") || entry.getValue().json == null) continue;
             LanCoop.CreatureInfo info = Json.gson.fromJson(entry.getValue().json, LanCoop.CreatureInfo.class);
+            if (info == null || info.data == null || info.data.hp <= 0) continue;
             if (info.encounterOwner != null) {
                 if (session.peers().containsKey(info.encounterOwner)) continue;
                 info.encounterOwner = null;

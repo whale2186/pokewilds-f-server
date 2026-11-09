@@ -3531,6 +3531,7 @@ public class Battle {
                if (itemName.contains("poké doll")) {
                   game.player.numFlees = 0;
                   game.battle.oppPokemon.inBattle = false;
+                  game.battle.oppPokemon.aggroPlayer = false;
                   game.actionStack.remove(this);
                   game.insertAction(
                      new DisplayText(
@@ -3582,6 +3583,7 @@ public class Battle {
             if (runSuccessful) {
                game.player.numFlees = 0;
                game.battle.oppPokemon.inBattle = false;
+               game.battle.oppPokemon.aggroPlayer = false;
                game.actionStack.remove(this);
                game.insertAction(
                   new WaitFrames(

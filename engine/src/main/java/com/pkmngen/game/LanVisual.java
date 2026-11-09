@@ -26,7 +26,9 @@ final class LanVisual {
     static String capture(Game game) {
         LanVisual value = new LanVisual();
         Player player = game.player;
-        value.busy = !game.playerCanMove || game.coop != null && (game.coop.hud.blocksInput() || game.coop.spectator.blocksInput());
+        value.busy = !game.playerCanMove || game.battle.drawAction != null
+                || (game.battle.oppPokemon != null && game.battle.oppPokemon.inBattle)
+                || game.coop != null && (game.coop.hud.blocksInput() || game.coop.spectator.blocksInput() || game.coop.hasHostilityCooldown());
         value.flying = "FLY".equals(player.currFieldMove);
         value.calmingLevel = "CHARM".equals(player.currFieldMove) && player.hmPokemon != null ? player.hmPokemon.level : 0;
         if (game.coop!=null) value.battle=game.coop.spectator.capture();
