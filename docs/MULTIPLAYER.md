@@ -216,3 +216,9 @@ Choose an item in the bag, select **DROP**, and choose an amount. Face clear gro
 The start menu hides **Save** in multiplayer. **Exit** saves your progress and returns to the main menu. **Quit** on the main menu closes the game. Use updated clients for the pack sprite and menus.
 
 Optional menu check: `python3 scripts/test_main_menu.py` verifies saving and returning to the main menu in single-player, graphical hosting and guest play, including reconnecting in the same window. It uses copied worlds.
+
+Player name, character, clothing color and skin color are saved in `player-profile.json` in your runtime directory. The UUID in `coop-profile.txt` remains independent of your name. An explicit `--coop-name` overrides the saved default name.
+
+Trades transfer ownership to the receiving player. Both players confirm before the server records the decision. Update the server as well as the clients for the headless trade-save fix.
+
+Graphical checks: `python3 scripts/test_interactions.py` covers trade, placement, pickup, player battles and reconnect; `python3 scripts/test_appearance.py` checks saved appearance across processes and rendered night/day contrast. Both use isolated copied worlds.

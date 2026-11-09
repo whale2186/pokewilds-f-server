@@ -48,8 +48,22 @@ public final class DedicatedServerTest {
                 if (!accepted) throw new AssertionError("Edit not accepted");
                 for (Map.Entry<String, LanSession.Value> entry : client.resources().entrySet()) if (entry.getKey().startsWith("pokemon:") && entry.getValue().json != null) {
                     LanCoop.CreatureInfo info = Json.gson.fromJson(entry.getValue().json, LanCoop.CreatureInfo.class);
-                    client.pose(new LanSession.Pose(client.id(), "test-player", "gold", "down", world.mapId, info.layer, info.data.position.x, info.data.position.y, false));
-                    Thread.sleep(100);
+                    boolean reserved=false;
+                    for(int attempt=0;attempt<4 && !reserved;attempt++) {
+                        LanSession.Value latest=client.resource(entry.getKey());
+                        info=Json.gson.fromJson(latest.json,LanCoop.CreatureInfo.class);
+                        client.pose(new LanSession.Pose(client.id(), "test-player", "gold", "down", world.mapId, info.layer, info.data.position.x, info.data.position.y, false));
+                        Thread.sleep(100);info.encounterOwner=client.id();
+                        String reservation=UUID.randomUUID().toString();
+                        client.transact(reservation,Collections.singletonMap(entry.getKey(),latest.revision),Collections.singletonMap(entry.getKey(),Json.gson.toJson(info)));
+                        long until=System.nanoTime()+5_000_000_000L;
+                        while(System.nanoTime()<until) {
+                            LanSession.TransactionResult result=client.takeTransactionResult(reservation);
+                            if(result!=null) { reserved=result.accepted;break; }
+                            Thread.sleep(10);
+                        }
+                    }
+                    if(!reserved) throw new AssertionError("Could not reserve capture fixture");
                     String capture = UUID.randomUUID().toString();
                     LanSession.Value current = client.resources().get(entry.getKey());
                     client.transact(capture, Collections.singletonMap(entry.getKey(), current.revision), Collections.singletonMap(entry.getKey(), (String)null));

@@ -33,6 +33,7 @@ public final class LanCoop implements AutoCloseable {
     private volatile boolean closed;
     private Thread worker;
     private boolean initialized;
+    private long lightingRevision = -1;
     private WorldInfo world;
     private final Map<String, Route> routes = new HashMap<>();
     private final IdentityHashMap<Route, String> routeIds = new IdentityHashMap<>();
@@ -75,6 +76,7 @@ public final class LanCoop implements AutoCloseable {
     private int editRetries;
     private LanInventoryCheckpoint<Pokemon> privateCheckpoint;
     private boolean privateEffects;
+    boolean sharedEditPending() { return pendingTransaction != null; }
     boolean privateEditPending() { return pendingTransaction != null && privateEffects; }
     private void checkpointPrivate() {
         privateCheckpoint = new LanInventoryCheckpoint<>(game.player.getItemsDict(), game.player.pokemon, game.player.currPokemon);
@@ -148,7 +150,7 @@ public final class LanCoop implements AutoCloseable {
     }
 
     LanCoop(Game game, LanOptions options) { this.game = game; this.options = options; interactions = new LanInteractions(game, this); hud = new LanHud(game, this); spectator = new LanSpectator(game,this); }
-    boolean interactWithPlayer() { return ready() && !hud.blocksInput() && !spectator.blocksInput() && interactions.openNearby(); }
+    boolean interactWithPlayer() { return ready() && pendingTransaction == null && !hud.blocksInput() && !spectator.blocksInput() && interactions.openNearby(); }
     boolean interactionBusy() { return interactions.busy(); }
     LanBattleState interactionBattle() { return interactions.battleView(); }
     boolean peerBattling(String id) {
@@ -222,6 +224,7 @@ public final class LanCoop implements AutoCloseable {
         try { playerIdentity = LanIdentity.player(java.nio.file.Paths.get("."), options.name); }
         catch (IOException error) { failure = error.getMessage(); return; }
         game.player.name = options.name;
+        game.rememberPlayerProfile(options.name);
         if (isGuest()) {
             stopSetup();
             game.playerCanMove = false;
@@ -250,6 +253,7 @@ public final class LanCoop implements AutoCloseable {
                     game.player.character = setupPlayer.character;
                     game.player.skinColor = new Color(setupPlayer.skinColor);
                     game.player.setColor(new Color(setupPlayer.color));
+                    game.player.currSprite = game.player.standingSprites.get(game.player.dirFacing);
                 }
                 game.player.name = options.name;
             } else {
@@ -294,7 +298,15 @@ public final class LanCoop implements AutoCloseable {
             try { installSnapshot(); }
             catch (Exception error) { failure = "World snapshot failed: " + error.getMessage(); error.printStackTrace(); session.close(); }
         }
-        if (initialized && session != null) { finishTransaction(); finishExit(); }
+        if (initialized && session != null) {
+            finishTransaction(); finishExit();
+            if (isGuest()) {
+                Value clock = session.resource("clock");
+                if (clock != null && clock.json != null && clock.revision != lightingRevision) {
+                    installResource("clock", clock.json); lightingRevision = clock.revision;
+                }
+            }
+        }
         if (initialized && session != null && !session.isConnected()) {
             failure = "Disconnected: " + session.failure();
             game.playerCanMove = false;
@@ -592,6 +604,7 @@ public final class LanCoop implements AutoCloseable {
         game.playerCanMove = true; makeMinimap();
         observed.putAll(snapshot);
         for (Map.Entry<String, Value> entry : snapshot.entrySet()) baseline.put(entry.getKey(), entry.getValue().json);
+        game.player.currSprite = game.player.standingSprites.get(game.player.dirFacing);
         initialized = true; checkpointPrivate();
         System.out.println("COOP_READY join id=" + session.id() + " tiles=" + game.map.overworldTiles.size());
     }
@@ -1174,6 +1187,7 @@ public final class LanCoop implements AutoCloseable {
 
     String identity() { return playerIdentity; }
     void prepareTrade(int slot, Pokemon replacement, String tradeId) {
+        if (pendingTransaction != null || slot < 0 || slot >= game.player.pokemon.size()) throw new IllegalStateException("A shared edit is still settling");
         flushPlayerSaves();
         PendingEdit record = new PendingEdit(); record.trade = true; record.receiptKey = "trade:" + tradeId;
         record.before = Json.gson.toJson(new Network.PlayerData(game.player));
@@ -1199,6 +1213,7 @@ public final class LanCoop implements AutoCloseable {
         }
         try { java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(pendingSavePath() + ".json.zip")); }
         catch (IOException error) { throw new IllegalStateException("Cannot clear trade journal", error); }
+        checkpointPrivate();
     }
     void discardTrade() {
         try { java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(pendingSavePath() + ".json.zip")); }
@@ -1230,7 +1245,7 @@ public final class LanCoop implements AutoCloseable {
         return false;
     }
     @Override public void close() {
-        spectator.dispose(); hud.dispose();
+        interactions.dispose(); spectator.dispose(); hud.dispose();
         closed = true; saveGuest();
         if (session != null) session.close();
         if (worker != null) worker.interrupt();

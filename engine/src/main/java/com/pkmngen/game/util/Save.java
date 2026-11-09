@@ -173,7 +173,7 @@ public class Save {
    }
 
    private static boolean pathExists(String path) {
-      return Gdx.files.local(path).exists();
+      return Files.exists(Paths.get(path));
    }
 
    private enum Format {

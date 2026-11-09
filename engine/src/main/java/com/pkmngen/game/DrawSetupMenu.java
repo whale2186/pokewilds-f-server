@@ -172,6 +172,9 @@ class DrawSetupMenu extends Action {
             }
          }
       }
+      this.playerTypeIndex = Math.max(0, this.playerTypes.indexOf(game.player.character));
+      for (int i = 0; i < this.colors.size(); i++) if (Color.rgba8888(this.colors.get(i)) == Color.rgba8888(game.player.color)) this.avatarColorIndex = i;
+      if (game.playerProfile != null) for (char c : game.playerProfile.name.toCharArray()) this.name.add(c);
    }
 
    @Override
@@ -195,7 +198,11 @@ class DrawSetupMenu extends Action {
       }
 
       game.currMusic.play();
-      game.player.setColor(this.colors.get(this.avatarColorIndex));
+      game.player.setColor(game.playerProfile == null ? this.colors.get(this.avatarColorIndex) : game.player.color);
+      this.avatarSprites.clear();
+      this.avatarSprites.add(game.player.standingSprites.get("down"));
+      this.avatarSprites.add(game.player.movingSprites.get("down"));
+      this.avatarSprites.add(game.player.altMovingSprites.get("down"));
       bindInput();
    }
 
@@ -226,11 +233,15 @@ class DrawSetupMenu extends Action {
    }
 
    private boolean updateField(char character, ArrayList<Character> characters) {
-      return TextField.updateField(character, characters, 11, false);
+      return TextField.updateField(character, characters, characters == this.name ? 24 : 11, false);
    }
 
    @Override
    public void step(final Game game) {
+      StringBuilder profileName = new StringBuilder();
+      for (char c : this.name) profileName.append(c);
+      game.rememberPlayerProfile(profileName.toString());
+      if (game.player.currFieldMove.isEmpty()) game.player.currSprite = game.player.standingSprites.get(game.player.dirFacing);
       if (currIndex == 0) {
          if (InputProcessor.leftJustPressed && this.localHostJoinIndex > 0) this.localHostJoinIndex--;
          if (InputProcessor.rightJustPressed && this.localHostJoinIndex < 2) this.localHostJoinIndex++;
@@ -384,13 +395,13 @@ class DrawSetupMenu extends Action {
                this.fieldSelected = DrawSetupMenu.TextFieldSelected.NAME;
                if (avatarAnimCounter >= 12) {
                   Sprite letterSprite = game.textDict.get('_');
-                  game.uiBatch.draw(letterSprite, 48 + 8 * this.name.size(), 128 - 16 * j);
+                  game.uiBatch.draw(letterSprite, 48 + 8 * Math.min(11, this.name.size()), 128 - 16 * j);
                }
             }
 
-            for (int i = 0; i < this.name.size(); i++) {
+            for (int i = Math.max(0, this.name.size() - 11); i < this.name.size(); i++) {
                Sprite letterSprite = game.textDict.get(this.name.get(i));
-               game.uiBatch.draw(letterSprite, 48 + 8 * i, 128 - 16 * j);
+               game.uiBatch.draw(letterSprite, 48 + 8 * (i - Math.max(0, this.name.size() - 11)), 128 - 16 * j);
             }
          } else if (j == 5 + this.offset + this.offset2 + this.offset3 && this.newLoadIndex != 1) {
             Sprite avatarSprite;
@@ -512,7 +523,7 @@ class DrawSetupMenu extends Action {
                this.newPos = this.newPos.cpy().add(16 + 32 * this.playerColorIndex, 0.0F);
             }
 
-            this.selectColorBox.setColor(this.colors.get(this.avatarColorIndex));
+            this.selectColorBox.setColor(game.player.color);
             this.selectColorBox.setPosition(66.0F, 123 - 16 * j);
             this.selectColorBox.draw(game.uiBatch);
             game.uiBatch.draw(avatarSprite, 96.0F, 124 - 16 * j);
@@ -616,6 +627,7 @@ class DrawSetupMenu extends Action {
 
                      try {
                         game.map.loadFromFile(game);
+                        if (game.playerProfile != null) game.playerProfile.apply(game.player);
                         InputProcessor.aJustPressed = false;
                      } catch (Exception e) {
                         e.printStackTrace();

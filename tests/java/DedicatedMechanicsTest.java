@@ -15,6 +15,8 @@ public final class DedicatedMechanicsTest {
         try (LanSession host = LanSession.host("127.0.0.1", 0, "server", Json.gson.toJson(state.world), state.resources,
                 (id, actor, key, before, after) -> LanCoop.allowWorldMutation(state.world, authority[0] != null && id.equals(authority[0].id()), actor, key, before, after))) {
             authority[0] = host;
+            java.nio.file.Path tradeDirectory=java.nio.file.Files.createTempDirectory("headless-trade-");
+            LanCoop.installTradePersistence(host,tradeDirectory);
             String key = null;
             for (Map.Entry<String, String> entry : state.resources.entrySet()) if (entry.getKey().startsWith("pokemon:")) {
                 LanCoop.CreatureInfo info = Json.gson.fromJson(entry.getValue(), LanCoop.CreatureInfo.class);
@@ -52,6 +54,10 @@ public final class DedicatedMechanicsTest {
             try (LanSession client = LanSession.join("127.0.0.1", host.port(), "player")) {
                 client.pose(new LanSession.Pose(client.id(), "player", "gold", "down", state.world.mapId, creature.layer, creature.data.position.x, creature.data.position.y, false));
                 Thread.sleep(100);
+                String trade="trade:"+UUID.randomUUID();
+                update(client,trade,0L,client.id());
+                LanCoop.ReceiptStore saved=com.pkmngen.game.util.Save.readData(tradeDirectory.resolve("coop-receipts").toString(),LanCoop.ReceiptStore.class);
+                if(!client.id().equals(saved.values.get(trade))) throw new AssertionError("Headless trade decision not durable");
                 String terrainKey = tileKey(creature);
                 LanSession.Value terrain = client.resources().get(terrainKey);
                 Network.TileData chopped = Json.gson.fromJson(terrain.json, Network.TileData.class);

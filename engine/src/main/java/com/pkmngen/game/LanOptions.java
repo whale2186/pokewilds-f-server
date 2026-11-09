@@ -6,6 +6,7 @@ public final class LanOptions {
     public String address = "127.0.0.1";
     public int port = 54555;
     public String name = "player";
+    public boolean nameSpecified;
     public String world;
     public boolean createWorld;
     public int size = 30000;
@@ -38,7 +39,7 @@ public final class LanOptions {
                     break;
                 case "--coop-name":
                     if (!value.matches("[A-Za-z0-9_-]{1,24}")) throw new IllegalArgumentException("LAN name: 1-24 letters, digits, _ or -");
-                    out.name = value;
+                    out.name = value; out.nameSpecified = true;
                     break;
                 case "--coop-new": case "--coop-world":
                     if (out.world != null || !value.matches("[A-Za-z0-9_-]{1,32}")) throw new IllegalArgumentException("Choose one safe LAN world name");

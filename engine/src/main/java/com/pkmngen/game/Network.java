@@ -522,8 +522,8 @@ public class Network {
       }
 
       public PokemonData(Pokemon pokemon, int index) {
-         super(pokemon, index);
-         this.exp = pokemon.exp;
+         this(pokemon);
+         this.index = index;
       }
    }
 

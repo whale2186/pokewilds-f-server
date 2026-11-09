@@ -158,6 +158,17 @@ public class Game extends ApplicationAdapter {
    private boolean inFullScreen = false;
 
    LanCoop coop;
+   PlayerProfile playerProfile;
+   void rememberPlayerProfile(String name) {
+      if (this.player == null) return;
+      if (name == null || name.trim().isEmpty()) name = this.playerProfile == null ? this.player.name : this.playerProfile.name;
+      PlayerProfile next = PlayerProfile.of(this.player, name.trim());
+      if (!next.valid()) return;
+      this.player.name = next.name;
+      if (next.same(this.playerProfile)) return;
+      try { next.write(java.nio.file.Paths.get("player-profile.json")); this.playerProfile = next; }
+      catch (IOException error) { System.err.println("Cannot save player appearance: " + error.getMessage()); }
+   }
    private boolean mainMenuRequested;
 
    // Apply transitions at the start of a frame, before either action stack is copied.
@@ -165,6 +176,7 @@ public class Game extends ApplicationAdapter {
 
    private void returnToMainMenu() {
       this.mainMenuRequested = false;
+      this.rememberPlayerProfile(this.player.name);
       if (this.coop != null) { this.coop.close(); this.coop = null; }
       if (this.client != null) {
          if (this.type == Type.CLIENT && this.client.isConnected())
@@ -267,6 +279,7 @@ public class Game extends ApplicationAdapter {
       staticGame = this;
       this.gameThread = Thread.currentThread();
       this.mapBatch = new ProxyBatch();
+      this.mapBatch.tintSprites = true;
       this.uiBatch = new ProxyBatch();
       this.mapBatch.enableBlending();
       this.uiBatch.enableBlending();
@@ -293,6 +306,10 @@ public class Game extends ApplicationAdapter {
       this.font.getRegion().getTexture().setFilter(TextureFilter.Linear, TextureFilter.Linear);
       this.font.setColor(Color.BLACK);
       this.player = new Player();
+      this.playerProfile = PlayerProfile.read(java.nio.file.Paths.get("player-profile.json"));
+      if (this.playerProfile != null) this.playerProfile.apply(this.player);
+      if (this.coop != null && !this.coop.options.nameSpecified && this.playerProfile != null
+            && this.playerProfile.name.matches("[A-Za-z0-9_-]{1,24}")) this.coop.options.name = this.playerProfile.name;
       this.battle = new Battle();
       this.textDict = this.initTextDict();
       this.initTransparentDict();
@@ -369,6 +386,7 @@ public class Game extends ApplicationAdapter {
 
    @Override
    public void dispose() {
+      this.rememberPlayerProfile(this.player.name);
       if (this.coop != null) this.coop.close();
       this.mapBatch.dispose();
       this.uiBatch.dispose();
@@ -689,6 +707,7 @@ public class Game extends ApplicationAdapter {
    /** Menu and server-list joins use the same revisioned LAN protocol as DedicatedServer. */
    public void joinCoop(String endpoint, String name) {
       LanOptions options = LanOptions.forJoin(endpoint, name);
+      this.rememberPlayerProfile(name);
       if (this.coop != null) this.coop.close();
       this.coop = new LanCoop(this, options);
       this.coop.create();
@@ -910,12 +929,25 @@ public class Game extends ApplicationAdapter {
          }
       }
 
+      if (this.map != null && this.map.tiles == this.map.overworldTiles && !CycleDayNight.fadeToDay && !CycleDayNight.fadeToNight) {
+         if ("night".equals(this.map.timeOfDay)) {
+            this.mapBatch.setColor(PkmnMap.nightColor); this.currCloudTexture = this.nightTexture;
+         } else {
+            String biome = this.map.currRoute == null ? "" : this.map.currRoute.type();
+            this.mapBatch.setColor("deep_forest".equals(biome) ? new Color(.7f,.7f,1,1)
+                  : "graveyard".equals(biome) ? new Color(.9f,.9f,1,1) : Color.WHITE);
+            this.currCloudTexture = this.cloudTexture;
+         }
+      }
       this.cam.update();
       this.mapBatch.setProjectionMatrix(this.cam.combined);
       this.mapBatch.begin();
       if (!this.player.dontDrawMapDuringBattle && canUseFrameBuffers && this.mapBatch.getColor().r < 1.0F) {
          this.frameBuffer.begin();
+         // The light mask must start transparent; opaque white brightens the entire scene.
+         Gdx.gl.glClearColor(1, 1, 1, 0);
          Gdx.gl.glClear(16384);
+         Gdx.gl.glClearColor(1, 1, 1, 1);
          this.temp1 = this.mapBatch.getBlendSrcFunc();
          this.temp2 = this.mapBatch.getBlendDstFunc();
          this.mapBatch.setBlendFunctionSeparate(770, 771, 1, 1);

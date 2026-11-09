@@ -5,6 +5,22 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
 public class ProxyBatch extends SpriteBatch {
    boolean disabled = false;
+   public boolean tintSprites;
+   private float[] tintedVertices = new float[80];
+
+   @Override public void draw(Texture texture, float[] vertices, int offset, int count) {
+      com.badlogic.gdx.graphics.Color tint = getColor();
+      if (!tintSprites || tint.equals(com.badlogic.gdx.graphics.Color.WHITE)) { super.draw(texture, vertices, offset, count); return; }
+      if (tintedVertices.length < count) tintedVertices = new float[count];
+      System.arraycopy(vertices, offset, tintedVertices, 0, count);
+      for (int i = 2; i < count; i += 5) {
+         int rgba = com.badlogic.gdx.utils.NumberUtils.floatToIntColor(tintedVertices[i]);
+         int r = (int)((rgba & 255) * tint.r), g = (int)(((rgba >>> 8) & 255) * tint.g);
+         int b = (int)(((rgba >>> 16) & 255) * tint.b), a = (int)(((rgba >>> 24) & 255) * tint.a);
+         tintedVertices[i] = com.badlogic.gdx.utils.NumberUtils.intToFloatColor(r | g << 8 | b << 16 | a << 24);
+      }
+      super.draw(texture, tintedVertices, 0, count);
+   }
 
    public void draw(SpriteProxy sprite, float x, float y) {
       Texture texture = sprite.getTexture();

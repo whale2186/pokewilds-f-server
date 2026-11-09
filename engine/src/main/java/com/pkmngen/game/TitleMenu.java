@@ -66,7 +66,7 @@ final class TitleMenu extends Action {
             if (screen == Screen.ADD && selected == 2 && !Character.isDigit(c)) return true;
             value = value.substring(0, cursor) + c + value.substring(cursor++);
         } else return false;
-        if (screen == Screen.SERVERS) playerName = value;
+        if (screen == Screen.SERVERS) { playerName = value; game.rememberPlayerProfile(value); }
         else if (selected == 0) serverName = value;
         else if (selected == 1) endpoint = value;
         else port = value;
