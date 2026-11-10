@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.4 — Breeding, habitat, and navigation fixes
+
+Fix Pokémon breeding and egg appearance: resolve egg group matching for single egg group Pokémon and Ditto (`EGG_NONE` no longer resets compatibility), fix `nearbyEggs` miscounting adult Pokémon, add standing egg placement for enclosed pens, and ensure multiplayer egg animation and authority sync.
+
+Restore wild Drapion aggression and movement across all desert and sand terrain variations. Fix nighttime Ghost spawns across cemetery and dark biomes. Fix main menu Exit action returning directly to the local, host, join setup screen.
+
 ## v0.1.3 — Item packs and menus
 
 Fix aggressive Pokémon standing still after being provoked, including wild Drapion. Restore nighttime ghost encounters for multiplayer guests. Fix repeated battle re-triggering upon fleeing or defeating aggressive Pokémon and ghosts.

@@ -1012,6 +1012,24 @@ public final class LanCoop implements AutoCloseable {
     }
 
     private static void putTarget(Map<String,String> map,String key,String target) { if(target==null) map.remove(key); else map.put(key,target); }
+    boolean isAuthorityForBreeding(Pokemon pokemon) {
+        if (session == null || game == null || game.player == null) return true;
+        if (pokemon.lanOwnerId != null) return session.id().equals(pokemon.lanOwnerId);
+        if (pokemon.previousOwner != null) return pokemon.previousOwner == game.player;
+        if (!isGuest()) return true;
+        if (world == null) return true;
+        float myDist2 = pokemon.position.dst2(game.player.position);
+        for (Pose peer : session.peers().values()) {
+            if (peer.id.equals(session.id())) continue;
+            if (peer.mapId == null || !peer.mapId.equals(world.mapId)) continue;
+            float peerDist2 = (peer.x - pokemon.position.x) * (peer.x - pokemon.position.x)
+                            + (peer.y - pokemon.position.y) * (peer.y - pokemon.position.y);
+            if (peerDist2 < myDist2 || (peerDist2 == myDist2 && peer.id.compareTo(session.id()) < 0)) {
+                return false;
+            }
+        }
+        return true;
+    }
     boolean managesAggression(Pokemon pokemon) {
         return isWorldCreature(pokemon) && pokemon.previousOwner == null && pokemon.lanOwnerId == null
                 && (pokemon.aggroPlayer || "drapion".equals(pokemon.specie.name));
@@ -1068,7 +1086,9 @@ public final class LanCoop implements AutoCloseable {
             }
             pokemon.removeDrawActions(game);
         } else {
-            pokemon.aggroPlayer = false;
+            if (!"drapion".equals(pokemon.specie.name)) {
+                pokemon.aggroPlayer = false;
+            }
             pokemon.inBattle = false;
             provokers.remove(id);
             pursuitTargets.remove(id);

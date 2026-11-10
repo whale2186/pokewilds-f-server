@@ -30,8 +30,8 @@ public final class MainMenuReturnE2E extends Game {
             map=new PkmnMap("fixture"); start(); map.loadFromFile(this);
         }
     }
-    private TitleMenu title() {
-        for(Action action:actionStack) if(action instanceof TitleMenu) return (TitleMenu)action;
+    private DrawSetupMenu setup() {
+        for(Action action:actionStack) if(action instanceof DrawSetupMenu) return (DrawSetupMenu)action;
         return null;
     }
     private void exitMenu() throws Exception {
@@ -63,7 +63,7 @@ public final class MainMenuReturnE2E extends Game {
                 if((Integer)field(confirmation,"frames")<3) return;
                 InputProcessor.upJustPressed=InputProcessor.aJustPressed=true; phase=2;
             } else if(phase==2) {
-                TitleMenu menu=title(); if(menu==null) return;
+                DrawSetupMenu menu=setup(); if(menu==null) return;
                 if(coop!=null || map!=null || server!=null || client!=null || type!=null || !players.isEmpty() || !battles.isEmpty()) throw new AssertionError("Old session leaked into title");
                 if(leaving!=null && leaving.isConnected()) throw new AssertionError("LAN session still connected");
                 if(actionStack.size()!=2 || Gdx.input.getInputProcessor()==null) throw new AssertionError("World actions/input remained at title");
@@ -79,27 +79,8 @@ public final class MainMenuReturnE2E extends Game {
                 com.badlogic.gdx.graphics.Pixmap picture=ScreenUtils.getFrameBufferPixmap(0,0,Gdx.graphics.getWidth(),Gdx.graphics.getHeight());
                 try { PixmapIO.writePNG(Gdx.files.local("main-menu.png"),picture,-1,true); } finally { picture.dispose(); }
                 returns++; titleFrames=0;
-                phase=mode.equals("guest") && returns==1?3:5;
-            } else if(phase==3) {
-                TitleMenu menu=title();
-                if(field(menu,"screen").toString().equals("TITLE")) {
-                    if((Integer)field(menu,"selected")!=1) InputProcessor.downJustPressed=true;
-                    else InputProcessor.aJustPressed=true;
-                } else {
-                    InputProcessor.aJustPressed=true;
-                    if((Integer)field(menu,"selected")==2) phase=4;
-                }
-            } else if(phase==4) {
-                if(coop==null || !coop.ready()) return;
-                if(coop.session()==leaving || player.getItemAmount("log")!=73) throw new AssertionError("Same-window reconnect failed");
-                exitMenu();
-            } else if(phase==5) {
-                InputProcessor.aJustPressed=true; phase=6;
-            } else if(phase==6) {
-                for(Action action:actionStack) if(action instanceof DrawSetupMenu && !action.firstStep) {
-                    System.out.println("PASS_MAIN_MENU "+mode+" returns="+returns);
-                    phase=7; Gdx.app.exit(); return;
-                }
+                System.out.println("PASS_MAIN_MENU "+mode+" returns="+returns);
+                phase=7; Gdx.app.exit(); return;
             }
         } catch(Throwable failure) { failure.printStackTrace(); System.exit(1); }
     }

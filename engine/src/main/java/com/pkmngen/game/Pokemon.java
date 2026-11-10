@@ -94,6 +94,7 @@ public class Pokemon extends OverworldThing {
    public static int layEggTimerMax;
    int layEggTimer;
    int nearbyEggs;
+   int habitatCheckCounter;
    String trappedBy;
    int trapCounter;
    Pokemon cantEscapeBy;
@@ -244,6 +245,7 @@ public class Pokemon extends OverworldThing {
       this.loveInterest = null;
       this.layEggTimer = layEggTimerMax;
       this.nearbyEggs = 0;
+      this.habitatCheckCounter = 0;
       this.trappedBy = null;
       this.trapCounter = 0;
       this.cantEscapeBy = null;
@@ -308,6 +310,9 @@ public class Pokemon extends OverworldThing {
          this.gender = ((Network.PokemonDataV05)pokemonData).gender;
          this.happiness = ((Network.PokemonDataV05)pokemonData).friendliness;
          this.aggroPlayer = ((Network.PokemonDataV05)pokemonData).aggroPlayer;
+         if (this.previousOwner == null && this.lanOwnerId == null && "drapion".equals(this.specie.name)) {
+            this.aggroPlayer = true;
+         }
       }
 
       if (pokemonData instanceof Network.PokemonDataV07) {
@@ -384,6 +389,7 @@ public class Pokemon extends OverworldThing {
       this.loveInterest = null;
       this.layEggTimer = layEggTimerMax;
       this.nearbyEggs = 0;
+      this.habitatCheckCounter = 0;
       this.trappedBy = null;
       this.trapCounter = 0;
       this.cantEscapeBy = null;
@@ -610,7 +616,7 @@ public class Pokemon extends OverworldThing {
 
             if (game.map.pokemon.containsKey(tile.position)) {
                Pokemon pokemon = game.map.pokemon.get(tile.position);
-               if (pokemon != this && pokemon.mapTiles == this.mapTiles) {
+               if (pokemon != this && pokemon.isEgg && pokemon.mapTiles == this.mapTiles) {
                   this.nearbyEggs++;
                }
             }
@@ -625,30 +631,25 @@ public class Pokemon extends OverworldThing {
                boolean genderCompatible = potentialMate.gender.equals(oppGender);
                boolean sameEggGroup = false;
 
+               eggGroupCheck:
                for (int i = 0; i < this.eggGroups.length; i++) {
                   String group1 = this.eggGroups[i];
-                  int j = 0;
+                  if (group1 == null || group1.equals("EGG_NONE")) continue;
 
-                  while (j < potentialMate.eggGroups.length) {
+                  for (int j = 0; j < potentialMate.eggGroups.length; j++) {
                      String group2 = potentialMate.eggGroups[j];
-                     if (!group1.equals("EGG_NONE") && !group2.equals("EGG_NONE")) {
-                        if (!group1.equals("EGG_DITTO") && !group2.equals("EGG_DITTO")) {
-                           if (group1.equals(group2)) {
-                              sameEggGroup = true;
-                              break;
-                           }
+                     if (group2 == null || group2.equals("EGG_NONE")) continue;
 
-                           j++;
-                           continue;
-                        }
-
+                     if (group1.equals("EGG_DITTO") || group2.equals("EGG_DITTO")) {
                         genderCompatible = true;
                         sameEggGroup = true;
-                        break;
+                        break eggGroupCheck;
                      }
 
-                     sameEggGroup = false;
-                     break;
+                     if (group1.equals(group2)) {
+                        sameEggGroup = true;
+                        break eggGroupCheck;
+                     }
                   }
                }
 
@@ -777,6 +778,63 @@ public class Pokemon extends OverworldThing {
       }
 
       this.happiness = 100;
+   }
+
+   void layEgg(Game game, Vector2 eggPos) {
+      this.layEggTimer = layEggTimerMax;
+      String base = baseSpecies.get(this.specie.name.toLowerCase(Locale.ROOT));
+      if (this.specie.name.equals("ditto") && this.loveInterest != null) {
+         base = baseSpecies.get(this.loveInterest.specie.name.toLowerCase(Locale.ROOT));
+      }
+
+      if (base == null) {
+         base = this.specie.name.toLowerCase(Locale.ROOT);
+      }
+
+      if (base.equals("nidoran_f") && Game.rand.nextInt(256) < 128) {
+         base = "nidoran_m";
+      }
+
+      Pokemon pokemonEgg = new Pokemon(base, 5, Pokemon.Generation.CRYSTAL, Game.rand.nextInt(256) == 0, true);
+      int currIndex = 0;
+
+      for (int i = 0; i < pokemonEgg.attacks.length; i++) {
+         if (pokemonEgg.attacks[i] == null) {
+            currIndex = i;
+            break;
+         }
+      }
+
+      if (Pokemon.eggMoves.get(base) != null && this.loveInterest != null) {
+         for (String move : Pokemon.eggMoves.get(base)) {
+            for (String attack : this.loveInterest.attacks) {
+               if (move.equals(attack)) {
+                  boolean foundMove = false;
+
+                  for (int j = 0; j < pokemonEgg.attacks.length; j++) {
+                     if (this.attacks[j] != null && this.attacks[j].equalsIgnoreCase(attack)) {
+                        foundMove = true;
+                        break;
+                     }
+                  }
+
+                  if (!foundMove) {
+                     pokemonEgg.attacks[currIndex] = move;
+                     currIndex = (currIndex + 1) % 4;
+                  }
+               }
+            }
+         }
+      }
+
+      pokemonEgg.mapTiles = this.mapTiles;
+      pokemonEgg.interiorIndex = this.interiorIndex;
+      pokemonEgg.position = eggPos.cpy();
+      pokemonEgg.previousOwner = this.previousOwner;
+      pokemonEgg.lanOwnerId = this.lanOwnerId;
+      pokemonEgg.lanOwnerName = this.lanOwnerName;
+      game.map.indexPokemon(pokemonEgg.position, pokemonEgg);
+      game.insertAction(pokemonEgg.new Standing());
    }
 
    void spookify() {
@@ -1783,27 +1841,58 @@ public class Pokemon extends OverworldThing {
       @Override
       public void step(Game game) {
          if (game.coop != null && game.coop.reserved(Pokemon.this)) return;
-         if (game.coop != null && game.coop.isGuest() && !this.following
-                 && game.coop.isWorldCreature(Pokemon.this)) return;
-         if (Pokemon.this.hasItem == null && !this.isEgg) {
-            if (Pokemon.this.inHabitat) {
-               Pokemon.this.harvestTimer = Pokemon.this.harvestTimer + Pokemon.maxStagger;
-               if (Pokemon.this.inShelter) {
-                  Pokemon.this.harvestTimer = Pokemon.this.harvestTimer + Pokemon.maxStagger;
-               }
-            }
+         if (this.isEgg || Pokemon.this.isEgg) return;
 
-            if (Pokemon.this.harvestTimer >= Pokemon.this.harvestTimerMax) {
-               Pokemon.this.hasItem = Pokemon.this.harvestables.get(game.map.rand.nextInt(Pokemon.this.harvestables.size()));
+         boolean isBreedingAuth = game.coop == null || game.coop.isAuthorityForBreeding(Pokemon.this);
+         if (isBreedingAuth) {
+            Pokemon.this.habitatCheckCounter++;
+            if (Pokemon.this.habitatCheckCounter >= 60 || !Pokemon.this.inHabitat || Pokemon.this.loveInterest == null) {
+               Pokemon.this.habitatCheckCounter = 0;
+               Pokemon.this.checkHabitat(game);
             }
          }
 
-         if (Pokemon.this.loveInterest != null
+         if (Pokemon.this.hasItem == null && !this.isEgg) {
+            if (game.coop == null || !game.coop.isGuest() || this.following || !game.coop.isWorldCreature(Pokemon.this)) {
+               if (Pokemon.this.inHabitat) {
+                  Pokemon.this.harvestTimer = Pokemon.this.harvestTimer + Pokemon.maxStagger;
+                  if (Pokemon.this.inShelter) {
+                     Pokemon.this.harvestTimer = Pokemon.this.harvestTimer + Pokemon.maxStagger;
+                  }
+               }
+
+               if (Pokemon.this.harvestTimer >= Pokemon.this.harvestTimerMax) {
+                  Pokemon.this.hasItem = Pokemon.this.harvestables.get(game.map.rand.nextInt(Pokemon.this.harvestables.size()));
+               }
+            }
+         }
+
+         if (isBreedingAuth
+            && Pokemon.this.loveInterest != null
             && Pokemon.this.inHabitat
             && Pokemon.this.nearbyEggs < 3
-            && (Pokemon.this.gender.equals("female") || Pokemon.this.eggGroups[0].equals("EGG_DITTO") && Pokemon.this.loveInterest.gender.equals("male"))
-            && Pokemon.this.layEggTimer > 0) {
-            Pokemon.this.layEggTimer = Pokemon.this.layEggTimer - Pokemon.maxStagger;
+            && (Pokemon.this.gender.equals("female") || (Pokemon.this.eggGroups[0].equals("EGG_DITTO") && !Pokemon.this.loveInterest.gender.equals("female")))) {
+            if (Pokemon.this.layEggTimer > 0) {
+               Pokemon.this.layEggTimer = Pokemon.this.layEggTimer - Pokemon.maxStagger;
+            }
+
+            if (Pokemon.this.layEggTimer <= 0) {
+               Vector2[] adj = new Vector2[]{
+                  new Vector2(Pokemon.this.position.x, Pokemon.this.position.y - 16.0F),
+                  new Vector2(Pokemon.this.position.x, Pokemon.this.position.y + 16.0F),
+                  new Vector2(Pokemon.this.position.x - 16.0F, Pokemon.this.position.y),
+                  new Vector2(Pokemon.this.position.x + 16.0F, Pokemon.this.position.y)
+               };
+               for (Vector2 pos : adj) {
+                  Tile tile = Pokemon.this.mapTiles.get(pos);
+                  if (tile != null && !tile.isSolid && !tile.isLedge
+                     && !tile.name.contains("door") && !tile.nameUpper.contains("gate") && !tile.nameUpper.contains("door")
+                     && !game.map.pokemon.containsKey(pos) && (game.player == null || !game.player.position.equals(pos))) {
+                     Pokemon.this.layEgg(game, pos);
+                     break;
+                  }
+               }
+            }
          }
 
          if (Pokemon.this.friend != null && Pokemon.this.friendTimer > 0) {
@@ -2314,52 +2403,7 @@ public class Pokemon extends OverworldThing {
          }
 
          if (Pokemon.this.layEggTimer <= 0 && Pokemon.this.loveInterest != null && !game.map.pokemon.containsKey(this.initialPos)) {
-            Pokemon.this.layEggTimer = Pokemon.layEggTimerMax;
-            String baseSpecies = Pokemon.baseSpecies.get(Pokemon.this.specie.name.toLowerCase(Locale.ROOT));
-            if (Pokemon.this.specie.name.equals("ditto")) {
-               baseSpecies = Pokemon.baseSpecies.get(Pokemon.this.loveInterest.specie.name.toLowerCase(Locale.ROOT));
-            }
-
-            if (baseSpecies.equals("nidoran_f") && Game.rand.nextInt(256) < 128) {
-               baseSpecies = "nidoran_m";
-            }
-
-            Pokemon pokemonEgg = new Pokemon(baseSpecies, 5, Pokemon.Generation.CRYSTAL, Game.rand.nextInt(256) == 0, true);
-            int currIndex = 0;
-
-            for (int i = 0; i < pokemonEgg.attacks.length; i++) {
-               if (pokemonEgg.attacks[i] == null) {
-                  currIndex = i;
-                  break;
-               }
-            }
-
-            if (Pokemon.eggMoves.get(baseSpecies) != null) {
-               for (String move : Pokemon.eggMoves.get(baseSpecies)) {
-                  for (String attack : Pokemon.this.loveInterest.attacks) {
-                     if (move.equals(attack)) {
-                        boolean foundMove = false;
-
-                        for (int j = 0; j < pokemonEgg.attacks.length; j++) {
-                           if (Pokemon.this.attacks[j] != null && Pokemon.this.attacks[j].equalsIgnoreCase(attack)) {
-                              foundMove = true;
-                              break;
-                           }
-                        }
-
-                        if (!foundMove) {
-                           pokemonEgg.attacks[currIndex] = move;
-                           currIndex = (currIndex + 1) % 4;
-                        }
-                     }
-                  }
-               }
-            }
-
-            pokemonEgg.mapTiles = Pokemon.this.mapTiles;
-            pokemonEgg.position = this.initialPos.cpy();
-            game.map.indexPokemon(pokemonEgg.position, pokemonEgg);
-            game.insertAction(pokemonEgg.new Standing());
+            Pokemon.this.layEgg(game, this.initialPos);
          }
 
          if (game.type == Game.Type.SERVER) {
@@ -2474,6 +2518,7 @@ public class Pokemon extends OverworldThing {
          Pokemon.this.interiorIndex = game.map.tiles == game.map.overworldTiles ? 100 : game.map.interiorTilesIndex;
          Pokemon.this.drawThisFrame = true;
          if (Pokemon.this.previousOwner != null || Pokemon.this.lanOwnerId != null) Pokemon.this.aggroPlayer = false;
+         else if ("drapion".equals(Pokemon.this.specie.name)) Pokemon.this.aggroPlayer = true;
          Pokemon.this.isRunning = false;
          game.insertAction(Pokemon.this.new Standing());
       }
@@ -3831,6 +3876,11 @@ public class Pokemon extends OverworldThing {
 
       @Override
       public void step(Game game) {
+         if (this.isEgg || Pokemon.this.isEgg) {
+            this.localStep(game);
+            return;
+         }
+
          if (game.coop != null && (game.coop.isGuest() || game.coop.reserved(Pokemon.this) || game.coop.managesAggression(Pokemon.this)) && game.coop.isWorldCreature(Pokemon.this)) {
             Pokemon.this.currOwSprite = Pokemon.this.standingSprites.get(Pokemon.this.dirFacing);
             return;

@@ -157,16 +157,29 @@ final class DedicatedSimulation {
         return value == null || value.json == null ? null : Json.gson.fromJson(value.json, Network.TileData.class);
     }
     static boolean walkable(Network.TileData tile, DedicatedSpecies species) {
-        if (tile == null || tile.tileNameUpper == null || !tile.tileNameUpper.isEmpty()) return false;
-        boolean water = tile.tileName != null && tile.tileName.startsWith("water");
+        if (tile == null) return false;
+        boolean water = tile.tileName != null && (tile.tileName.startsWith("water") || tile.tileName.startsWith("ocean"));
         if (species.onlySwim) return water;
         if (water) return species.types.contains("WATER") || species.types.contains("FLYING");
         return walkable(tile);
     }
     static boolean walkable(Network.TileData tile) {
-        if (tile == null || tile.tileNameUpper == null || !tile.tileNameUpper.isEmpty()) return false;
+        if (tile == null) return false;
+        if (tile.tileNameUpper != null && !tile.tileNameUpper.isEmpty()) {
+            String upper = tile.tileNameUpper.toLowerCase(Locale.ROOT);
+            if (upper.contains("fence") || upper.contains("wall") || upper.contains("tree") || upper.contains("rock")
+                    || upper.contains("boulder") || upper.contains("gate") || upper.contains("door") || upper.contains("building")
+                    || upper.contains("statue") || upper.contains("sign") || upper.contains("cactus") || upper.contains("roof")
+                    || upper.contains("solid")) return false;
+        }
         String name = tile.tileName;
-        return name != null && (name.startsWith("green") || name.startsWith("grass") || name.equals("sand1")
-                || name.equals("mountain1") || name.equals("desert1") || name.equals("snow1") || name.equals("snow3") || name.equals("soot1") || name.equals("volcano1") || name.equals("flower1") || name.equals("ruins_floor2"));
+        if (name == null) return false;
+        String lower = name.toLowerCase(Locale.ROOT);
+        if (lower.contains("tree") || lower.contains("fence") || lower.contains("cliff") || lower.contains("wall") || lower.contains("waterfall")) return false;
+        return lower.startsWith("green") || lower.startsWith("grass") || lower.startsWith("sand")
+                || lower.startsWith("mountain") || lower.startsWith("desert") || lower.startsWith("snow")
+                || lower.startsWith("soot") || lower.startsWith("volcano") || lower.startsWith("flower")
+                || lower.startsWith("ruins") || lower.startsWith("dirt") || lower.startsWith("path")
+                || lower.startsWith("savanna") || lower.startsWith("tundra") || lower.startsWith("bridge");
     }
 }

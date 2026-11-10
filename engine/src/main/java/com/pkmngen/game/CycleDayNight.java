@@ -79,13 +79,45 @@ class CycleDayNight extends Action {
             || game.coop != null && (game.coop.hud.blocksInput() || game.coop.spectator.blocksInput() || game.coop.interactionBusy())) return;
       if (this.lightCheckTimer-- <= 0) { game.player.isNearCampfire = game.player.checkNearCampfire(); this.lightCheckTimer = 30; }
       if (game.player.isNearCampfire) return;
+      for (Action action : game.actionStack) {
+         if (action instanceof DrawGhost || action instanceof SpawnGhost) return;
+      }
       Tile ground = game.map.tiles.get(new Vector2((float)Math.floor(game.player.position.x/16)*16,(float)Math.floor(game.player.position.y/16)*16));
-      String biome = ground != null && ground.biome != null ? ground.biome : game.map.currBiome;
-      if (!"deep_forest".equals(biome) && !"graveyard".equals(biome) && !"wooded_lake".equals(biome)) return;
+      if (!isGhostBiome(game, ground)) return;
       if (--this.countDownToGhost <= 0) {
          Vector2 position = game.player.position.cpy().add(this.rand.nextInt(5)*16-48,this.rand.nextInt(5)*16-48);
-         game.insertAction(new SpawnGhost(game,position)); this.countDownToGhost = this.rand.nextInt(2000)+1000;
+         boolean graveyard = isGraveyard(game, ground);
+         game.insertAction(new SpawnGhost(game, position, graveyard));
+         this.countDownToGhost = this.rand.nextInt(2000) + 1000;
       }
+   }
+
+   private static boolean isGhostBiome(Game game, Tile ground) {
+      if (isGhostBiomeName(game.map.currBiome)) return true;
+      if (game.map.currRoute != null && (isGhostBiomeName(game.map.currRoute.name) || isGhostBiomeName(game.map.currRoute.type()))) return true;
+      if (ground != null) {
+         if (isGhostBiomeName(ground.biome)) return true;
+         if (ground.routeBelongsTo != null && (isGhostBiomeName(ground.routeBelongsTo.name) || isGhostBiomeName(ground.routeBelongsTo.type()))) return true;
+         if (isGhostBiomeName(ground.name) || isGhostBiomeName(ground.nameUpper)) return true;
+      }
+      return false;
+   }
+
+   private static boolean isGhostBiomeName(String name) {
+      if (name == null || name.isEmpty()) return false;
+      String lower = name.toLowerCase(java.util.Locale.ROOT);
+      return lower.contains("deep_forest") || lower.contains("graveyard") || lower.contains("wooded_lake") || lower.contains("woodedlake");
+   }
+
+   private static boolean isGraveyard(Game game, Tile ground) {
+      if (game.map.currBiome != null && game.map.currBiome.contains("graveyard")) return true;
+      if (game.map.currRoute != null && game.map.currRoute.name != null && game.map.currRoute.name.contains("graveyard")) return true;
+      if (ground != null) {
+         if (ground.biome != null && ground.biome.contains("graveyard")) return true;
+         if (ground.routeBelongsTo != null && ground.routeBelongsTo.name != null && ground.routeBelongsTo.name.contains("graveyard")) return true;
+         if (ground.nameUpper != null && ground.nameUpper.contains("gravestone")) return true;
+      }
+      return false;
    }
 
    @Override

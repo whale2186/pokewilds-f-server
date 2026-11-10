@@ -227,7 +227,7 @@ public class Game extends ApplicationAdapter {
       Gdx.input.setInputProcessor(null); InputProcessor.clearControls();
       this.insertAction(new InputProcessor());
       if (Gdx.app.getType() == ApplicationType.Android) this.insertAction(new DrawMobileControls(this));
-      this.insertAction(new TitleMenu(this));
+      this.insertAction(new DrawSetupMenu(this, null));
       Gdx.gl.glClearColor(1, 1, 1, 1);
    }
 

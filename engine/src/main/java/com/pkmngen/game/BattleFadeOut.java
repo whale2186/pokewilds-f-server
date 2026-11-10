@@ -103,7 +103,9 @@ class BattleFadeOut extends Action {
          game.player.currPokemon.cantEscapeBy = null;
          if (game.battle.oppPokemon != null) {
             game.battle.oppPokemon.inBattle = false;
-            game.battle.oppPokemon.aggroPlayer = false;
+            if (!"drapion".equals(game.battle.oppPokemon.specie.name)) {
+               game.battle.oppPokemon.aggroPlayer = false;
+            }
             if (game.battle.oppPokemon.standingAction instanceof Pokemon.Standing) {
                Pokemon.Standing standing = (Pokemon.Standing)game.battle.oppPokemon.standingAction;
                standing.aggroTimer = -300;
