@@ -1,0 +1,2 @@
+launcher-server-linux-x64-files.bin filter=lfs diff=lfs merge=lfs -text
+pokewilds-f-server-v1.0.0-linux-x64.zip filter=lfs diff=lfs merge=lfs -text
